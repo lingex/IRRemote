@@ -618,6 +618,7 @@ void loop()
 		}
 		//power off oled
 		display.ssd1306_command(SSD1306_DISPLAYOFF);
+		delay(10);
 
 		//rtc_gpio_pullup_en(GPIO_NUM_4);
 		//rtc_gpio_pulldown_dis(GPIO_NUM_4);
