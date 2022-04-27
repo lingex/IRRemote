@@ -446,7 +446,7 @@ void setup()
 	display.println("AC Remote");
 	display.display();
 	display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
-	delay(300);
+	delay(100);
 	printState();
 	digitalWrite(LED, 0);
 }
@@ -602,7 +602,7 @@ void loop()
 		display.clearDisplay();
 		// text display tests
 		display.setTextSize(1);
-		display.setCursor(30, 12);
+		display.setCursor(28, 12);
 		display.println("Going to sleep");
 		display.display();
 		display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
@@ -611,14 +611,14 @@ void loop()
 		Serial.println("Going to sleep now");
 		Serial.flush();
 		delay(1000);
+		//power off oled
+		display.ssd1306_command(SSD1306_DISPLAYOFF);
+		delay(10);
 		while (digitalRead(KEY_OK) == 0)
 		{
 			yield();
 			delay(100);
 		}
-		//power off oled
-		display.ssd1306_command(SSD1306_DISPLAYOFF);
-		delay(10);
 
 		//rtc_gpio_pullup_en(GPIO_NUM_4);
 		//rtc_gpio_pulldown_dis(GPIO_NUM_4);
