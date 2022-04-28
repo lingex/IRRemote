@@ -617,8 +617,9 @@ void loop()
 		delay(10);
 		while (digitalRead(KEY_OK) == 0)
 		{
+			esp_sleep_enable_timer_wakeup(100 * 1000);	//wakeup every 100 millisec
+			esp_light_sleep_start();
 			yield();
-			delay(100);
 		}
 
 		//rtc_gpio_pullup_en(GPIO_NUM_4);
