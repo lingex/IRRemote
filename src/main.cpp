@@ -20,6 +20,7 @@
 #include "main.h"
 #include "ota.h"
 #include "web.h"
+#include "rtc_io.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -301,14 +302,26 @@ void setup()
 	print_wakeup_reason();
 
 	wakeupCount++;
+	rtc_gpio_hold_dis(GPIO_NUM_2);	//reconnect I2C_SCL pin
 	Wire.setPins(DIS_SDA, DIS_SCL);
 	if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
 	{
 		Serial.println(F("SSD1306 allocation failed"));
 		//for(;;); // Don't proceed, loop forever
 	}
-	display.display();
 	display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
+/*
+	//the adafruit logo
+	display.display();
+	delay(100);
+*/
+	display.clearDisplay();
+	// text display tests
+	display.setTextSize(2);
+	display.setTextColor(SSD1306_WHITE);
+	display.setCursor(14, 7);
+	display.println("AC Remote");
+	display.display();
 
 	if (SW_ACTIVE)
 	{
@@ -422,7 +435,6 @@ void setup()
 
 	batteryVol = GetBatteryVal();
 
-	display.setTextColor(SSD1306_WHITE);
 	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
 	ac.begin();
 	ac.setModel(R_LT0541_HTA_B);
@@ -438,15 +450,6 @@ void setup()
 		ac.setFan(kHitachiAcFanLow);
 		ac.setSwingV(false);
 	}
-	display.clearDisplay();
-	// text display tests
-	display.setTextSize(2);
-	//display.setTextColor(oledColor);
-	display.setCursor(14, 7);
-	display.println("AC Remote");
-	display.display();
-	display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
-	delay(100);
 	printState();
 	digitalWrite(LED, 0);
 }
@@ -487,7 +490,6 @@ void printOLED()
 	
 	//delay(10);
 	display.display(); // actually display all of the above
-	display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
 }
 
 void printState()
@@ -605,7 +607,6 @@ void loop()
 		display.setCursor(28, 12);
 		display.println("Going to sleep");
 		display.display();
-		display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
 		AcBackup();
 
 		Serial.println("Going to sleep now");
@@ -631,6 +632,7 @@ void loop()
 		esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_HIGH);	//can wake when rtc shutdown
 
 		esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+		rtc_gpio_isolate(GPIO_NUM_2);	//pull down inside and pull up as I2C_SCL outside, avoid power consume
 		esp_deep_sleep_start();
 	}
 	yield();
