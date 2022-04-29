@@ -616,6 +616,7 @@ uint8_t IRHitachiAc1::getFan(void) const {
 /// @param[in] force Deprecated
 void IRHitachiAc1::setFan(const uint8_t speed, const bool /*force*/) {
   // restrictions
+  /*
   switch (_.Mode) {
     case kHitachiAc1Dry:
       _.Fan = kHitachiAc1FanLow;  // Dry is locked to Low speed.
@@ -634,6 +635,7 @@ void IRHitachiAc1::setFan(const uint8_t speed, const bool /*force*/) {
         return;
       }
   }
+  */
 
   switch (speed) {
     case kHitachiAc1FanAuto:
