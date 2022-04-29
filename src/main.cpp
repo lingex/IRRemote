@@ -32,6 +32,7 @@
 #define USB_ACTIVE (digitalRead(USB_DET) == 1)
 
 String configFile = "/config.ini";
+String acConfig = "/ac.ini";
 
 // 默认机器名字
 const char* host = "esp32";
@@ -162,8 +163,6 @@ RTC_DATA_ATTR uint8_t acTemp = 0;
 RTC_DATA_ATTR uint16_t wakeupCount = 0;
 uint16_t oledColor = SSD1306_WHITE;
 
-
-
 void handleModeInt();
 void handleOkInt();
 void handleUpInt();
@@ -201,6 +200,20 @@ void AcBackup()
 	acFan = ac.getFan();
 	acTemp = ac.getTemp();
 	bkpInit = 0xc5;
+
+	//if(SPIFFS.exists(acConfig))
+	{
+		File file = SPIFFS.open(acConfig, "w");
+		String data = file.readString();
+		DynamicJsonDocument doc(512);
+		deserializeJson(doc, data);
+		doc["mode"].set<int>(acMode);
+		doc["fan"].set<int>(acFan);
+		doc["temp"].set<int>(acTemp);
+
+		serializeJson(doc, file);
+		file.close();
+	}
 }
 
 void AcRecovery()
@@ -323,9 +336,10 @@ void setup()
 	display.println("AC Remote");
 	display.display();
 
+	SPIFFS.begin();
+
 	if (SW_ACTIVE)
 	{
-		SPIFFS.begin();
 		//连接状态 0未连接 1已连接
 		int connect_status = 0;
 		// 读取配置文件
@@ -445,9 +459,29 @@ void setup()
 	}
 	else
 	{
-		ac.setMode(kHitachiAc1Cool);
-		ac.setTemp(25);
-		ac.setFan(kHitachiAc1FanLow);
+		if(SPIFFS.exists(acConfig))
+		{
+			File file = SPIFFS.open(acConfig, "r");
+			String data = file.readString();
+			DynamicJsonDocument doc(512);
+			deserializeJson(doc, data);
+			acMode = doc["mode"].as<int>();
+			acFan = doc["fan"].as<int>();
+			acTemp = doc["temp"].as<int>();
+		}
+		if (acMode == 0 || acFan == 0 || acTemp == 0)
+		{
+			acMode = kHitachiAc1Cool;
+			acFan = kHitachiAc1FanLow;
+			acTemp = kHitachiAc1TempAuto;
+		}
+		if(!SPIFFS.exists(acConfig))
+		{
+			AcBackup();
+		}
+		ac.setMode(acMode);
+		ac.setTemp(acTemp);
+		ac.setFan(acFan);
 		ac.setSwingV(false);
 	}
 	printState();
