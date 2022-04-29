@@ -453,6 +453,11 @@ void setup()
 	ac.begin();
 	ac.setModel(R_LT0541_HTA_B);
 	ac.setSleep(0);
+	ac.setPower(false);
+	ac.setPowerToggle(false);
+	ac.setSwingToggle(false);
+	ac.setSwingH(false);
+	ac.setSwingV(false);
 	if (bkpInit == 0xc5)
 	{
 		AcRecovery();
