@@ -28,7 +28,6 @@
 #include <ir_Hitachi.h>
 
 
-#define GET_AC_MODE(pinVal) ((pinVal == 0) ? kHitachiAc1Cool : kHitachiAc1Fan)
 #define SW_ACTIVE (digitalRead(SW_PIN) == 1)
 #define USB_ACTIVE (digitalRead(USB_DET) == 1)
 
@@ -298,7 +297,8 @@ void setup()
 
 	// Setup serial interface
 	Serial.begin(115200);
-	delay(50);
+	delay(10);
+
 	print_wakeup_reason();
 
 	wakeupCount++;
@@ -447,7 +447,7 @@ void setup()
 	{
 		ac.setMode(kHitachiAc1Cool);
 		ac.setTemp(25);
-		ac.setFan(kHitachiAcFanLow);
+		ac.setFan(kHitachiAc1FanLow);
 		ac.setSwingV(false);
 	}
 	printState();
@@ -512,18 +512,40 @@ void printState()
 //battery voltage in mV
 uint32_t GetBatteryVal()
 {
-  digitalWrite(BAT_ADCEN, 1);
-  delay(5);
-  uint32_t batVal = 0;
-  uint32_t count = 0;
-  for (int i = 0; i < 5; i++)
-  {
-    count += analogRead(BAT_ADC);
-  }
-  //Serial.printf("count: %d\n", count);
-  digitalWrite(BAT_ADCEN, 0);
-  batVal = count / 5 * 420  / 2 * 33 / 4095;
-  return batVal;
+	static bool init = false;
+	static uint8_t idx = 0;
+	static uint16_t adcVal[5];
+
+	uint32_t count = 0;
+	digitalWrite(BAT_ADCEN, 1);
+	delay(5);
+	uint32_t batVal = 0;
+	if (!init)
+	{
+		init = true;
+		for (int i = 0; i < 5; i++)
+		{
+			adcVal[i] = analogRead(BAT_ADC);
+		}
+	}
+	else
+	{
+		adcVal[idx] = analogRead(BAT_ADC);
+		idx++;
+		if (idx >= 5)
+		{
+			idx = 0;
+		}
+	}
+	for (int i = 0; i < 5; i++)
+	{
+		count += adcVal[i];
+	}
+
+	//Serial.printf("count: %d\n", count);
+	digitalWrite(BAT_ADCEN, 0);
+	batVal = count / 5 * 420  / 2 * 33 / 4095;
+	return batVal;
 }
 
 void loop()
@@ -611,10 +633,16 @@ void loop()
 
 		Serial.println("Going to sleep now");
 		Serial.flush();
-		delay(1000);
+
+		esp_sleep_enable_timer_wakeup(1000 * 1000);	//delay(1000)
+		esp_light_sleep_start();
+
 		//power off oled
 		display.ssd1306_command(SSD1306_DISPLAYOFF);
-		delay(10);
+		esp_sleep_enable_timer_wakeup(10 * 1000);	//delay(10)
+		esp_light_sleep_start();
+
+		//wait until button release
 		while (digitalRead(KEY_OK) == 0)
 		{
 			esp_sleep_enable_timer_wakeup(100 * 1000);	//wakeup every 100 millisec
