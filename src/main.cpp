@@ -149,7 +149,6 @@ std::vector<OneButton> buttons = {
 	OneButton(KEY_OK)
 };
 
-bool disPower = true;	//not use yet
 uint32_t batteryVol = 0;	//battary voltage in mV
 RTC_DATA_ATTR uint64_t uptime = 0;  //in seconds
 
@@ -733,9 +732,16 @@ void AcCmdSend()
 	}
 }
 
-void AcPowerSwitch()
+void AcPowerToggle()
 {
 	ac.setPowerToggle(true);
+	AcCmdSend();
+}
+
+void AcPowerSwitch(bool on)
+{
+	//ac.setPowerToggle(true);
+	ac.setPower(on);
 	AcCmdSend();
 }
 
@@ -804,7 +810,7 @@ void ButtonActionGo()
 	Serial.println("BTN GO CLICK");
 	Serial.printf("Uptime: %dd %02d:%02d:%02d\n\n", (int)(uptime / 86400), (int)(uptime % 86400 / 3600), (int)(uptime % 86400 % 3600 / 60)
 		, (int)(uptime % 86400 % 3600 % 60 % 60));
-	AcPowerSwitch();
+	AcPowerToggle();
 }
 void ButtonActionOk()
 {

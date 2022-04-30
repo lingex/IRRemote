@@ -11,8 +11,6 @@ extern String configFile;
 // 上传文件用
 File fsUploadFile;
 
-extern bool disPower;
-
 /**
  * 根据文件后缀获取html协议的返回内容类型
  */
@@ -92,12 +90,12 @@ void handleLed()
     if(a=="0")
     {
       ledStatus="0";
-      disPower = false;
+      AcPowerSwitch(false);
     }
     else if(a=="1")
     {
       ledStatus="1";
-      disPower = true;
+      AcPowerSwitch(true);
     }
   }
   server.send(200, "application/json", "{\"status\":\""+ledStatus+"\"}");

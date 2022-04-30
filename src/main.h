@@ -55,4 +55,6 @@
 #define LOGO_WIDTH    16
 
 
+void AcPowerSwitch(bool on);
+
 #endif

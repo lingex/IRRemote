@@ -32,7 +32,7 @@ body {padding-top: 50px;}
 <div class="nav-tab" id="index">
 <div class="container">
 	<div class="row">
-		<div class="col-md-2"><h4>Display switch:</h4></div>
+		<div class="col-md-2"><h4>AC Power:</h4></div>
 		<div class="col-md-10">
 			<button class="btn btn-success" id="ledon">ON</button>
 			<button class="btn btn-info" id="ledoff">OFF</button>
@@ -255,12 +255,12 @@ $(function(){
 	// 开关灯
 	$("#ledon").click(function(){
 		$.getJSON("/led?r="+Math.random(),{"led":"1"},function(data){
-			$("#ledout").html("Display:"+(data.status==0?"OFF":"ON"));
+			$("#ledout").html("AC Power:"+(data.status==0?"OFF":"ON"));
 		});
 	});
 	$("#ledoff").click(function(){
 		$.getJSON("/led?r="+Math.random(),{"led":"0"},function(data){
-			$("#ledout").html("Display:"+(data.status==0?"OFF":"ON"));
+			$("#ledout").html("AC Power:"+(data.status==0?"OFF":"ON"));
 		});
 	});
 
