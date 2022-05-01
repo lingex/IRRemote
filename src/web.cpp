@@ -85,20 +85,21 @@ void handleIndex()
 //板载led开关
 void handleLed()
 {
-  if(server.hasArg("led")){
-    String a = server.arg("led");
-    if(a=="0")
-    {
-      ledStatus="0";
-      AcPowerSwitch(false);
-    }
-    else if(a=="1")
-    {
-      ledStatus="1";
-      AcPowerSwitch(true);
-    }
-  }
-  server.send(200, "application/json", "{\"status\":\""+ledStatus+"\"}");
+	if(server.hasArg("led"))
+	{
+		String a = server.arg("led");
+		if(a == "0")
+		{
+			ledStatus = "0";
+		}
+		else
+		{
+			ledStatus = "1";
+		}
+
+		AcPowerSwitch(a != "0");
+	}
+	server.send(200, "application/json", "{\"status\":\""+ledStatus+"\"}");
 }
 
 //扫描wifi

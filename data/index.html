@@ -255,12 +255,12 @@ $(function(){
 	// 开关灯
 	$("#ledon").click(function(){
 		$.getJSON("/led?r="+Math.random(),{"led":"1"},function(data){
-			$("#ledout").html("AC Power:"+(data.status==0?"OFF":"ON"));
+			$("#ledout").html("Power:"+(data.status==0?"OFF":"ON"));
 		});
 	});
 	$("#ledoff").click(function(){
 		$.getJSON("/led?r="+Math.random(),{"led":"0"},function(data){
-			$("#ledout").html("AC Power:"+(data.status==0?"OFF":"ON"));
+			$("#ledout").html("Power:"+(data.status==0?"OFF":"ON"));
 		});
 	});
 
