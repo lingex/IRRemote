@@ -21,6 +21,7 @@
 #include "ota.h"
 #include "web.h"
 #include "rtc_io.h"
+#include "icons.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -299,7 +300,6 @@ void print_wakeup_reason()
 	}
 }
 
-// 主程序入口
 void setup()
 {
 	oledColor = GetOledColor();
@@ -344,6 +344,7 @@ void setup()
 	display.display();
 
 	SPIFFS.begin();
+	batteryVol = GetBatteryVal();
 
 	if (SW_ACTIVE)
 	{
@@ -454,8 +455,6 @@ void setup()
 	pinMode(BAT_ADCEN, OUTPUT);
 	digitalWrite(BAT_ADCEN, 0);
 
-	batteryVol = GetBatteryVal();
-
 	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
 	ac.begin();
 	ac.setModel(R_LT0541_HTA_B);
@@ -500,12 +499,83 @@ void setup()
 	digitalWrite(LED, 0);
 }
 
+const unsigned char * GetBatIcon()
+{
+	const uint16_t icOffset = 50;
+	const unsigned char * pIcon = NULL;
+	int64_t curSec = millis() / 1000;
+	uint8_t index = 1;
+
+	static uint8_t chargeStep;
+	static int64_t lastSec = curSec;
+
+
+	if (batteryVol >= 4000 - icOffset)
+	{
+		index = 4;
+	}
+	else if (batteryVol >= 3900 - icOffset)
+	{
+		index = 3;
+	}
+	else if (batteryVol >= 3700 - icOffset)
+	{
+		index = 2;
+	}
+	else
+	{
+		index = 1;
+		
+	}
+	if (USB_ACTIVE)
+	{
+		if (curSec != lastSec)
+		{
+			lastSec = curSec;
+			if (chargeStep < index)
+			{
+				chargeStep = index;
+			}
+			chargeStep++;
+			if (chargeStep >= 5)
+			{
+				chargeStep = index;
+			}
+			index = chargeStep;
+		}
+	}
+
+	switch (index)
+	{
+	case 1:
+		pIcon = bat1_icon8x8;
+		break;
+	case 2:
+		pIcon = bat2_icon8x8;
+		break;
+	case 3:
+		pIcon = bat3_icon8x8;
+		break;
+	case 4:
+		pIcon = bat4_icon8x8;
+		break;
+	case 5:
+		pIcon = bat5_icon8x8;
+		break;
+	default:
+		pIcon = bat1_icon8x8;
+		break;
+	}
+
+	return pIcon;
+}
+
 void printOLED()
 {
 	display.clearDisplay();
 	// text display tests
 	display.setTextSize(1);
-	display.setCursor(1, 0);
+	display.setCursor(1, 1);
 	display.printf("%s", AcModeString(ac.getMode()).c_str());
 	display.setCursor(1, 12);
 	display.printf("Temp: %dC", ac.getTemp());
@@ -514,24 +584,39 @@ void printOLED()
 	//display.printf("Swing: %s", ac.getSwingToggle() ? "on":"off");
 	display.setCursor(1, 24);
 	display.printf("%s", AcFanString(ac.getFan()).c_str());
-	
-	display.setCursor(100, 0);
-	display.printf("%0.1fV", batteryVol / 1000.0);
 
-	if (idleClock > 0)
+	uint8_t iconPlace = 120;
+
+	//battery icon
 	{
-		display.setCursor(112, 24);
-		display.printf("%02d", sleepClock - idleClock);
+		//display.setCursor(100, 1);
+		//display.printf("%0.1fV", batteryVol / 1000.0);
+		display.drawBitmap(iconPlace, 1, GetBatIcon(), 8, 8, SSD1306_WHITE);
+		iconPlace -= 10;
 	}
-	if (WiFi.isConnected())
-	{
-		display.setCursor(72, 12);
-		display.print("WIFI");
-	}
+	//usb icon
 	if (USB_ACTIVE)
 	{
-		display.setCursor(106, 12);
-		display.print("USB");
+		//display.drawBitmap(120, 1, bat5_icon8x8, 8, 8, SSD1306_WHITE);	//charge icon
+
+		//display.setCursor(106, 1);
+		//display.print("USB");
+		display.drawBitmap(iconPlace, 1, usb_icon8x8, 8, 8, SSD1306_WHITE);
+		iconPlace -= 10;
+	}
+	//wifi icon
+	if (WiFi.isConnected())
+	{
+		//display.setCursor(72, 12);
+		//display.print("WIFI");
+		display.drawBitmap(iconPlace, 1, wifi_icon8x8, 8, 8, SSD1306_WHITE);
+		iconPlace -= 10;
+	}
+	//sleep countdown
+	if (idleClock > 0)
+	{
+		display.setCursor(116, 24);
+		display.printf("%02d", sleepClock - idleClock);
 	}
 	
 	//delay(10);
@@ -740,13 +825,13 @@ void AcCmdSend()
 
 void AcPowerToggle()
 {
-	ac.setPowerToggle(true);
+	//ac.setPowerToggle(true);
+	ac.setPower(ac.getPower() ? false : true);
 	AcCmdSend();
 }
 
 void AcPowerSwitch(bool on)
 {
-	//ac.setPowerToggle(true);
 	ac.setPower(on);
 	AcCmdSend();
 }
