@@ -314,7 +314,15 @@ void setup()
 	print_wakeup_reason();
 
 	wakeupCount++;
+
+	/*After waking up from sleep, the IO pad used for wakeup will be configured as RTC IO. 
+	Therefore, before using this pad as digital GPIO, 
+	users need to reconfigure it using rtc_gpio_deinit() function.
+	*/
+	rtc_gpio_deinit((gpio_num_t)KEY_OK);
+	rtc_gpio_deinit((gpio_num_t)SW_PIN);
 	rtc_gpio_hold_dis(GPIO_NUM_2);	//reconnect I2C_SCL pin
+
 	Wire.setPins(DIS_SDA, DIS_SCL);
 	if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
 	{
@@ -677,8 +685,6 @@ void loop()
 
 		//power off oled
 		display.ssd1306_command(SSD1306_DISPLAYOFF);
-		esp_sleep_enable_timer_wakeup(10 * 1000);	//delay(10)
-		esp_light_sleep_start();
 
 		//wait until button release
 		while (digitalRead(KEY_OK) == 0)
@@ -816,6 +822,11 @@ void ButtonActionOk()
 {
 	idleClock = 0;
 	Serial.println("BTN OK CLICK");
+
+	{
+		//power on oled
+		display.ssd1306_command(SSD1306_DISPLAYON);
+	}
 }
 void ButtonActionLongOk()
 {
@@ -823,6 +834,11 @@ void ButtonActionLongOk()
 	if (!SW_ACTIVE)
 	{
 		idleClock = sleepClock;
+	}
+	else
+	{
+		//power off oled
+		display.ssd1306_command(SSD1306_DISPLAYOFF);
 	}
 }
 void ButtonActionMode()
