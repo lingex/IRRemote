@@ -28,9 +28,13 @@
 
 #include <ir_Hitachi.h>
 
+using namespace std;
 
-#define SW_ACTIVE (digitalRead(SW_PIN) == 1)
+#define SW_ACTIVE (digitalRead(SW_PIN) == 0)
 #define USB_ACTIVE (digitalRead(USB_DET) == 1)
+
+#define BAT_SAMPLE_ON  (digitalWrite(BAT_ADCEN, 1))
+#define BAT_SAMPLE_OFF (digitalWrite(BAT_ADCEN, 0))
 
 String configFile = "/config.ini";
 String acConfig = "/ac.ini";
@@ -131,7 +135,6 @@ const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 // Use turn on the save buffer feature for more complete capture coverage.
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
 decode_results results;  // Somewhere to store the results
-IRsend irsend(kIrLedPin);
 
 // ==================== end of TUNEABLE PARAMETERS ====================
 
@@ -151,8 +154,6 @@ std::vector<OneButton> buttons = {
 };
 
 uint32_t batteryVol = 0;	//battary voltage in mV
-RTC_DATA_ATTR uint64_t uptime = 0;  //in seconds
-
 uint16_t idleClock = 0;
 const uint16_t sleepClock = 25;
 
@@ -161,6 +162,7 @@ RTC_DATA_ATTR uint8_t acMode = 0;
 RTC_DATA_ATTR uint8_t acFan = 0;
 RTC_DATA_ATTR uint8_t acTemp = 0;
 RTC_DATA_ATTR uint16_t wakeupCount = 0;
+RTC_DATA_ATTR uint64_t uptime = 0;  //in seconds
 uint16_t oledColor = SSD1306_WHITE;
 
 void handleModeInt();
@@ -173,7 +175,7 @@ void handleRightInt();
 void ButtonEventsAttach();
 void printState();
 void printOLED();
-uint32_t GetBatteryVal();
+uint32_t GetBatteryVol();
 
 void ButtonActionGo();
 void ButtonActionOk();
@@ -312,7 +314,6 @@ void setup()
 	delay(10);
 
 	print_wakeup_reason();
-
 	wakeupCount++;
 
 	/*After waking up from sleep, the IO pad used for wakeup will be configured as RTC IO. 
@@ -322,6 +323,10 @@ void setup()
 	rtc_gpio_deinit((gpio_num_t)KEY_OK);
 	rtc_gpio_deinit((gpio_num_t)SW_PIN);
 	rtc_gpio_hold_dis(GPIO_NUM_2);	//reconnect I2C_SCL pin
+	BAT_SAMPLE_OFF;
+	pinMode(SW_PIN, INPUT);
+	pinMode(USB_DET, INPUT);
+	pinMode(BAT_ADCEN, OUTPUT);
 
 	Wire.setPins(DIS_SDA, DIS_SCL);
 	if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
@@ -344,7 +349,6 @@ void setup()
 	display.display();
 
 	SPIFFS.begin();
-	batteryVol = GetBatteryVal();
 
 	if (SW_ACTIVE)
 	{
@@ -440,7 +444,7 @@ void setup()
 		irrecv.setUnknownThreshold(kMinUnknownSize);
 #endif  // DECODE_HASH
 		irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
-		irrecv.enableIRIn();  // Start the receiver
+		irrecv.enableIRIn(false);  // Start the receiver
 	}
 
 	chipid=ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
@@ -449,11 +453,7 @@ void setup()
 
 	ButtonEventsAttach();
 
-	pinMode(SW_PIN, INPUT);
-	pinMode(USB_DET, INPUT);
-
-	pinMode(BAT_ADCEN, OUTPUT);
-	digitalWrite(BAT_ADCEN, 0);
+	batteryVol = GetBatteryVol();
 
 	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
 	ac.begin();
@@ -501,7 +501,7 @@ void setup()
 
 const unsigned char * GetBatIcon()
 {
-	const uint16_t icOffset = 50;
+
 	const unsigned char * pIcon = NULL;
 	int64_t curSec = millis() / 1000;
 	uint8_t index = 1;
@@ -509,23 +509,29 @@ const unsigned char * GetBatIcon()
 	static uint8_t chargeStep;
 	static int64_t lastSec = curSec;
 
-
-	if (batteryVol >= 4000 - icOffset)
+	if (batteryVol >= 4000)
+	{
+		index = 6;
+	}
+	else if (batteryVol >= 3900)
+	{
+		index = 5;
+	}
+	else if (batteryVol >= 3800)
 	{
 		index = 4;
 	}
-	else if (batteryVol >= 3900 - icOffset)
+	else if (batteryVol >= 3720)
 	{
 		index = 3;
 	}
-	else if (batteryVol >= 3700 - icOffset)
+	else if (batteryVol >= 3650)
 	{
 		index = 2;
 	}
 	else
 	{
 		index = 1;
-		
 	}
 	if (USB_ACTIVE)
 	{
@@ -537,7 +543,7 @@ const unsigned char * GetBatIcon()
 				chargeStep = index;
 			}
 			chargeStep++;
-			if (chargeStep >= 5)
+			if (chargeStep >= 7)
 			{
 				chargeStep = index;
 			}
@@ -562,8 +568,11 @@ const unsigned char * GetBatIcon()
 	case 5:
 		pIcon = bat5_icon8x8;
 		break;
+	case 6:
+		pIcon = bat6_icon8x8;
+		break;
 	default:
-		pIcon = bat1_icon8x8;
+		pIcon = batc_icon8x8;
 		break;
 	}
 
@@ -589,8 +598,8 @@ void printOLED()
 
 	//battery icon
 	{
-		//display.setCursor(100, 1);
-		//display.printf("%0.1fV", batteryVol / 1000.0);
+		//display.setCursor(96, 12);
+		//display.printf("%0.2fV", batteryVol / 1000.0);
 		display.drawBitmap(iconPlace, 1, GetBatIcon(), 8, 8, SSD1306_WHITE);
 		iconPlace -= 10;
 	}
@@ -641,42 +650,30 @@ void printState()
 }
 
 //battery voltage in mV
-uint32_t GetBatteryVal()
+uint32_t GetBatteryVol()
 {
-	static bool init = false;
-	static uint8_t idx = 0;
-	static uint16_t adcVal[5];
-
+	const uint16_t fixVal = 25;//mV
+	static vector<uint16_t> adcVec;
 	uint32_t count = 0;
-	digitalWrite(BAT_ADCEN, 1);
-	delay(5);
-	uint32_t batVal = 0;
-	if (!init)
+
+	BAT_SAMPLE_ON;
+	delay(4);
+	//adcVec.push_back(analogRead(BAT_ADC));
+	adcVec.push_back(analogReadMilliVolts(BAT_ADC) - fixVal);
+	BAT_SAMPLE_OFF;
+
+	if (adcVec.size() > 5)
 	{
-		init = true;
-		for (int i = 0; i < 5; i++)
-		{
-			adcVal[i] = analogRead(BAT_ADC);
-		}
+		adcVec.erase(adcVec.begin());
 	}
-	else
+	for (auto const &it : adcVec)
 	{
-		adcVal[idx] = analogRead(BAT_ADC);
-		idx++;
-		if (idx >= 5)
-		{
-			idx = 0;
-		}
-	}
-	for (int i = 0; i < 5; i++)
-	{
-		count += adcVal[i];
+		count += it;
 	}
 
-	//Serial.printf("count: %d\n", count);
-	digitalWrite(BAT_ADCEN, 0);
-	batVal = count / 5 * 420  / 2 * 33 / 4095;
-	return batVal;
+	//Serial.printf("size: %d, count: %d\n", adcVec.size(), count);
+	count = count / adcVec.size() * 2;
+	return count;
 }
 
 void loop()
@@ -689,7 +686,7 @@ void loop()
 	{
 		uptime++;
 		lastRefresh = curMs;
-		batteryVol = GetBatteryVal();
+		batteryVol = GetBatteryVol();
 		//Serial.printf("batVal: %dmV\n", batteryVol);
 		if (!SW_ACTIVE)
 		{
@@ -779,15 +776,11 @@ void loop()
 			yield();
 		}
 
-		//rtc_gpio_pullup_en(GPIO_NUM_4);
-		//rtc_gpio_pulldown_dis(GPIO_NUM_4);
-		//esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 0);
-
 		esp_sleep_enable_ext0_wakeup((gpio_num_t)KEY_OK, 0);	//can wake only when rtc active
 
 		uint64_t mask = 0;
 		mask |=  1ull << SW_PIN;
-		esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_HIGH);	//can wake when rtc shutdown
+		esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ALL_LOW);	//can wake when rtc shutdown
 
 		esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
 		rtc_gpio_isolate(GPIO_NUM_2);	//pull down inside and pull up as I2C_SCL outside, avoid power consume

@@ -50,11 +50,22 @@ const unsigned char bat2_icon8x8[] =
 	0b01000010,
 	0b01000010,
 	0b01000010,
-	0b01111110,
+	0b01000010,
 	0b01111110,
 	0b01111110,
 };
 const unsigned char bat3_icon8x8[] =
+{
+	0b00111100,
+	0b01000010,
+	0b01000010,
+	0b01000010,
+	0b01111110,
+	0b01111110,
+	0b01111110,
+	0b01111110,
+};
+const unsigned char bat4_icon8x8[] =
 {
 	0b00111100,
 	0b01000010,
@@ -65,7 +76,18 @@ const unsigned char bat3_icon8x8[] =
 	0b01111110,
 	0b01111110,
 };
-const unsigned char bat4_icon8x8[] =
+const unsigned char bat5_icon8x8[] =
+{
+	0b00111100,
+	0b01000010,
+	0b01111110,
+	0b01111110,
+	0b01111110,
+	0b01111110,
+	0b01111110,
+	0b01111110,
+};
+const unsigned char bat6_icon8x8[] =
 {
 	0b00111100,
 	0b01111110,
@@ -77,7 +99,7 @@ const unsigned char bat4_icon8x8[] =
 	0b01111110,
 };
 //charge
-const unsigned char bat5_icon8x8[] =
+const unsigned char batc_icon8x8[] =
 {
 	0b00111100,
 	0b01001010,

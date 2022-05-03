@@ -2,7 +2,7 @@
 #define __MAIN_H__
 
 #include <Arduino.h>
-
+#include <vector>
 
 /* ------------------------- CUSTOM GPIO PIN MAPPING ------------------------- */
 
