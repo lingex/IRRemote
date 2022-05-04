@@ -2,6 +2,7 @@
 #include <Update.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include "main.h"
 
 
 // OTA升级模式
@@ -24,6 +25,7 @@ void openOTA()
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+	OTAProgress(progress / (total / 100));
   });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);

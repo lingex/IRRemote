@@ -956,3 +956,18 @@ void ButtonEventsAttach()
 		ButtonActionLongOk();
 	});
 }
+
+void OTAProgress(uint16_t progress)
+{
+	display.clearDisplay();
+	display.setTextSize(1);
+	display.setCursor(32, 1);
+	display.println("OTA updating");
+	display.setCursor(32, 24);
+	display.printf("Progress: %d%%", progress);
+	display.display();
+	if (progress == 1)
+	{
+		display.ssd1306_command(SSD1306_DISPLAYON);
+	}
+}

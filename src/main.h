@@ -55,5 +55,6 @@
 
 
 void AcPowerSwitch(bool on);
+void OTAProgress(uint16_t progress);
 
 #endif
