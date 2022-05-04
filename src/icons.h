@@ -1,19 +1,9 @@
 
 const unsigned char wifi_icon8x8[] =
 {
-	/*
-	0b00000000,
-	0b11111111,
-	0b00000000,
-	0b01111110,
-	0b00000000,
 	0b00111100,
-	0b00000000,
-	0b00011000,
-	*/
-	0b00111100,
-	0b11000011,
-	0b00000000,
+	0b01000010,
+	0b10000001,
 	0b00011000,
 	0b00100100,
 	0b00000000,
@@ -24,15 +14,15 @@ const unsigned char wifi_icon8x8[] =
 const unsigned char usb_icon8x8[] =
 {
 	0b00010000,
-	0b00010010,
-	0b01010010,
-	0b01010100,
+	0b00010011,
+	0b10010010,
+	0b10010100,
 	0b01011000,
 	0b00110000,
 	0b00010000,
-	0b00010000,
+	0b00111000,
 };
-const unsigned char bat1_icon8x8[] =
+const unsigned char bat0_icon8x8[] =
 {
 	0b00111100,
 	0b01000010,
@@ -43,7 +33,7 @@ const unsigned char bat1_icon8x8[] =
 	0b01000010,
 	0b01111110,
 };
-const unsigned char bat2_icon8x8[] =
+const unsigned char bat1_icon8x8[] =
 {
 	0b00111100,
 	0b01000010,
@@ -51,6 +41,17 @@ const unsigned char bat2_icon8x8[] =
 	0b01000010,
 	0b01000010,
 	0b01000010,
+	0b01111110,
+	0b01111110,
+};
+const unsigned char bat2_icon8x8[] =
+{
+	0b00111100,
+	0b01000010,
+	0b01000010,
+	0b01000010,
+	0b01000010,
+	0b01111110,
 	0b01111110,
 	0b01111110,
 };

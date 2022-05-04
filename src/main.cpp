@@ -28,6 +28,9 @@
 
 #include <ir_Hitachi.h>
 
+#include <vector>
+#include <map>
+
 using namespace std;
 
 #define SW_ACTIVE (digitalRead(SW_PIN) == 0)
@@ -53,23 +56,16 @@ uint64_t chipid;
 
 int64_t btnChkMs = 0;
 
-static const unsigned char PROGMEM logo_bmp[] =
-{ 0b00000000, 0b11000000,
-  0b00000001, 0b11000000,
-  0b00000001, 0b11000000,
-  0b00000011, 0b11100000,
-  0b11110011, 0b11100000,
-  0b11111110, 0b11111000,
-  0b01111110, 0b11111111,
-  0b00110011, 0b10011111,
-  0b00011111, 0b11111100,
-  0b00001101, 0b01110000,
-  0b00011011, 0b10100000,
-  0b00111111, 0b11100000,
-  0b00111111, 0b11110000,
-  0b01111100, 0b11110000,
-  0b01110000, 0b01110000,
-  0b00000000, 0b00110000 
+static std::map<uint32_t, std::pair<uint32_t, const unsigned char *>> batVolIconMap = 
+{
+	//<index, <voltage, icon>>
+	{6, {4050, bat6_icon8x8}},
+	{5, {3950, bat5_icon8x8}},
+	{4, {3880, bat4_icon8x8}},
+	{3, {3760, bat3_icon8x8}},
+	{2, {3700, bat2_icon8x8}},
+	{1, {3620, bat1_icon8x8}},
+	{0, {0,    bat0_icon8x8}}
 };
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -501,39 +497,23 @@ void setup()
 
 const unsigned char * GetBatIcon()
 {
-
-	const unsigned char * pIcon = NULL;
+	const unsigned char * pIcon = bat0_icon8x8;
 	int64_t curSec = millis() / 1000;
-	uint8_t index = 1;
-
+	uint8_t index = 0;
 	static uint8_t chargeStep;
 	static int64_t lastSec = curSec;
 
-	if (batteryVol >= 4000)
+	for (auto it = batVolIconMap.rbegin(); it != batVolIconMap.rend(); it++)
 	{
-		index = 6;
+		auto pair = it->second;
+		if (batteryVol >= pair.first)
+		{
+			index = it->first;
+			pIcon = pair.second;
+			break;
+		}
 	}
-	else if (batteryVol >= 3900)
-	{
-		index = 5;
-	}
-	else if (batteryVol >= 3800)
-	{
-		index = 4;
-	}
-	else if (batteryVol >= 3720)
-	{
-		index = 3;
-	}
-	else if (batteryVol >= 3650)
-	{
-		index = 2;
-	}
-	else
-	{
-		index = 1;
-	}
-	if (USB_ACTIVE)
+	if (USB_ACTIVE && batVolIconMap.size() > 0)	//charging
 	{
 		if (curSec != lastSec)
 		{
@@ -543,37 +523,13 @@ const unsigned char * GetBatIcon()
 				chargeStep = index;
 			}
 			chargeStep++;
-			if (chargeStep >= 7)
+			if (chargeStep >= batVolIconMap.size())
 			{
 				chargeStep = index;
 			}
 			index = chargeStep;
+			pIcon = batVolIconMap[index].second;
 		}
-	}
-
-	switch (index)
-	{
-	case 1:
-		pIcon = bat1_icon8x8;
-		break;
-	case 2:
-		pIcon = bat2_icon8x8;
-		break;
-	case 3:
-		pIcon = bat3_icon8x8;
-		break;
-	case 4:
-		pIcon = bat4_icon8x8;
-		break;
-	case 5:
-		pIcon = bat5_icon8x8;
-		break;
-	case 6:
-		pIcon = bat6_icon8x8;
-		break;
-	default:
-		pIcon = batc_icon8x8;
-		break;
 	}
 
 	return pIcon;
@@ -595,13 +551,16 @@ void printOLED()
 	display.printf("%s", AcFanString(ac.getFan()).c_str());
 
 	uint8_t iconPlace = 120;
+	const uint8_t iconDis = 10;
 
 	//battery icon
 	{
-		//display.setCursor(96, 12);
-		//display.printf("%0.2fV", batteryVol / 1000.0);
+	#if 0
+		display.setCursor(96, 12);
+		display.printf("%0.2fV", batteryVol / 1000.0);
+	#endif
 		display.drawBitmap(iconPlace, 1, GetBatIcon(), 8, 8, SSD1306_WHITE);
-		iconPlace -= 10;
+		iconPlace -= iconDis;
 	}
 	//usb icon
 	if (USB_ACTIVE)
@@ -611,7 +570,7 @@ void printOLED()
 		//display.setCursor(106, 1);
 		//display.print("USB");
 		display.drawBitmap(iconPlace, 1, usb_icon8x8, 8, 8, SSD1306_WHITE);
-		iconPlace -= 10;
+		iconPlace -= iconDis;
 	}
 	//wifi icon
 	if (WiFi.isConnected())
@@ -619,7 +578,7 @@ void printOLED()
 		//display.setCursor(72, 12);
 		//display.print("WIFI");
 		display.drawBitmap(iconPlace, 1, wifi_icon8x8, 8, 8, SSD1306_WHITE);
-		iconPlace -= 10;
+		iconPlace -= iconDis;
 	}
 	//sleep countdown
 	if (idleClock > 0)
@@ -672,7 +631,7 @@ uint32_t GetBatteryVol()
 	}
 
 	//Serial.printf("size: %d, count: %d\n", adcVec.size(), count);
-	count = count / adcVec.size() * 2;
+	count = count * 2 / adcVec.size();
 	return count;
 }
 
