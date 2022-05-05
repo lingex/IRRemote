@@ -959,6 +959,15 @@ void ButtonEventsAttach()
 
 void OTAProgress(uint16_t progress)
 {
+	if (progress == 1)
+	{
+		display.ssd1306_command(SSD1306_DISPLAYON);
+	}
+	if (progress % 5 != 0)
+	{
+		return;
+	}
+	
 	display.clearDisplay();
 	display.setTextSize(1);
 	display.setCursor(32, 1);
@@ -966,8 +975,4 @@ void OTAProgress(uint16_t progress)
 	display.setCursor(32, 24);
 	display.printf("Progress: %d%%", progress);
 	display.display();
-	if (progress == 1)
-	{
-		display.ssd1306_command(SSD1306_DISPLAYON);
-	}
 }
