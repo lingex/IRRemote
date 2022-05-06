@@ -56,6 +56,7 @@ uint64_t chipid;
 
 int64_t btnChkMs = 0;
 
+const uint16_t lowestBatVol = 3450;	//protect battery voltage
 static std::map<uint32_t, std::pair<uint32_t, const unsigned char *>> batVolIconMap = 
 {
 	//<index, <voltage, icon>>
@@ -180,6 +181,7 @@ void ButtonActionUp();
 void ButtonActionDown();
 void ButtonActionLeft();
 void ButtonActionRight();
+void LowBatteryAction();
 
 uint16_t GetOledColor()
 {
@@ -649,6 +651,10 @@ void loop()
 		//Serial.printf("batVal: %dmV\n", batteryVol);
 		if (!SW_ACTIVE)
 		{
+			if (batteryVol < lowestBatVol)
+			{
+				LowBatteryAction();
+			}
 			idleClock++;
 			Serial.printf("Going to sleep in: %d Sec.\n", sleepClock - idleClock);
 		}
@@ -975,4 +981,22 @@ void OTAProgress(uint16_t progress)
 	display.setCursor(32, 24);
 	display.printf("Progress: %d%%", progress);
 	display.display();
+}
+
+//go into deep sleep only can wake up by charge
+void LowBatteryAction()
+{
+	//power off oled
+	display.ssd1306_command(SSD1306_DISPLAYOFF);
+
+	esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+	rtc_gpio_isolate(GPIO_NUM_2);	//pull down inside and pull up as I2C_SCL outside, avoid power consume
+
+	uint64_t mask = 0;
+	mask |=  1ull << USB_DET;
+	esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_HIGH);	//can wake when rtc shutdown
+
+	esp_sleep_pd_config(ESP_PD_DOMAIN_MAX, ESP_PD_OPTION_OFF);	//force shutdown rtc power
+
+	esp_deep_sleep_start();
 }
