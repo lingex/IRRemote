@@ -521,22 +521,21 @@ void setup()
 		{
 			File file = SPIFFS.open(configFile, "r");
 			String data = file.readString();
-			Serial.print("configFile:");
+			Serial.print("loading config:");
 			Serial.println(data);
 
 			DynamicJsonDocument doc(1024);
 			deserializeJson(doc, data);
-			JsonArray arr = doc.as<JsonArray>();
-			Serial.print("JsonSize:");
+			JsonArray arr = doc.getMember("wifi").as<JsonArray>();
+			Serial.print("wifi configs:");
 			Serial.println(arr.size());
-			for(unsigned int i=0;i<arr.size();i++)
+			for(int i=0; i<arr.size(); i++)
 			{
-				if(ConnectWiFi(arr[i]["ssid"],arr[i]["pwd"]))
+				if(ConnectWiFi(arr[i]["ssid"], arr[i]["pwd"]))
 				{
 					break;
 				}
 			}
-			//最后关闭文件
 			file.close();
 		}
 		else
