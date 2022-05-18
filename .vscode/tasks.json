@@ -10,7 +10,7 @@
             },
             "type": "shell",
             "command":[
-                "pio run --target uploadfs --upload-port 192.168.8.171"
+                "pio run --target uploadfs -e wifi --upload-port 192.168.8.171"
             ]
         }
     ]
