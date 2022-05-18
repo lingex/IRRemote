@@ -19,7 +19,6 @@
 
 #include "main.h"
 #include "ota.h"
-#include "web.h"
 #include "rtc_io.h"
 #include "icons.h"
 
@@ -31,6 +30,9 @@
 #include <vector>
 #include <map>
 
+#include <AsyncTCP.h>
+#include "ESPAsyncWebServer.h"
+
 using namespace std;
 
 #define SW_ACTIVE (digitalRead(SW_PIN) == 0)
@@ -39,19 +41,13 @@ using namespace std;
 #define BAT_SAMPLE_ON  (digitalWrite(BAT_ADCEN, 1))
 #define BAT_SAMPLE_OFF (digitalWrite(BAT_ADCEN, 0))
 
-String configFile = "/config.ini";
-String acConfig = "/ac.ini";
 
-// 默认机器名字
+String configFile = "/config.json";
 const char* host = "esp32";
-
 const char* ssid = "your ssid";
 const char* password = "your passwd";
-
 const char* apssid      = "esp32";
 const char* appassword = "pwd4admin";
-
-// esp32 读取信息
 uint64_t chipid;
 
 int64_t btnChkMs = 0;
@@ -138,7 +134,7 @@ decode_results results;  // Somewhere to store the results
 // The IR transmitter.
 IRHitachiAc1 ac(kIrLedPin);
 
-WebServer server(80);
+AsyncWebServer server(80);
 
 std::vector<OneButton> buttons = {
 	OneButton(KEY_BOOT),
@@ -154,13 +150,18 @@ uint32_t batteryVol = 0;	//battary voltage in mV
 uint16_t idleClock = 0;
 const uint16_t sleepClock = 25;
 
-RTC_DATA_ATTR uint8_t bkpInit = 0;
-RTC_DATA_ATTR uint8_t acMode = 0;
-RTC_DATA_ATTR uint8_t acFan = 0;
-RTC_DATA_ATTR uint8_t acTemp = 0;
-RTC_DATA_ATTR uint16_t wakeupCount = 0;
-RTC_DATA_ATTR uint64_t uptime = 0;  //in seconds
+//RTC_DATA_ATTR uint8_t acMode = 0;
+uint8_t acMode = 0;
+uint8_t acFan = 0;
+uint8_t acTemp = 0;
+uint32_t upCount = 0;
 uint16_t oledColor = SSD1306_WHITE;
+
+//web
+const char* PARAM_INPUT_STATE = "state";
+const char* PARAM_INPUT_VALUE = "value";
+const char* PARAM_INPUT_SWITCH = "switch";
+const char* PARAM_INPUT_SWING = "swing";
 
 void handleModeInt();
 void handleOkInt();
@@ -182,11 +183,15 @@ void ButtonActionDown();
 void ButtonActionLeft();
 void ButtonActionRight();
 void LowBatteryAction();
+void AcCmdSend();
+void AcSwingVSwitch();
+void AcPowerToggle();
+String GetDeviceInfoString();
 
 uint16_t GetOledColor()
 {
 	uint16_t color = SSD1306_WHITE;
-	if (wakeupCount % 10 >= 5)
+	if (upCount % 10 >= 5)
 	{
 		color = SSD1306_BLACK;
 	}
@@ -199,21 +204,27 @@ void AcBackup()
 	acMode = ac.getMode();
 	acFan = ac.getFan();
 	acTemp = ac.getTemp();
-	bkpInit = 0xc5;
 
-	//if(SPIFFS.exists(acConfig))
+	String data = "";
+	DynamicJsonDocument doc(1024);
+
+	if(SPIFFS.exists(configFile))
 	{
-		File file = SPIFFS.open(acConfig, "w");
+		File file = SPIFFS.open(configFile, FILE_READ);
 		String data = file.readString();
-		DynamicJsonDocument doc(512);
 		deserializeJson(doc, data);
-		doc["mode"].set<int>(acMode);
-		doc["fan"].set<int>(acFan);
-		doc["temp"].set<int>(acTemp);
+		auto pJson = doc.getOrAddMember("ac").as<JsonObject>();
+		pJson["mode"].set<int>(acMode);
+		pJson["fan"].set<int>(acFan);
+		pJson["temp"].set<int>(acTemp);
 
-		serializeJson(doc, file);
+		doc["upCount"] = ++upCount;
 		file.close();
 	}
+
+	File fileW = SPIFFS.open(configFile, FILE_WRITE);
+	serializeJson(doc, fileW);
+	fileW.close();
 }
 
 void AcRecovery()
@@ -300,10 +311,150 @@ void print_wakeup_reason()
 	}
 }
 
+String acPowerState()
+{
+	return (ac.getPower() ? "checked" : "");
+}
+
+String IntToString(int data)
+{
+	char tmp[32] = { 0 };
+	sprintf(tmp, "%d", data);
+	return String(tmp);
+}
+
+// Replaces placeholder with button section in your web page
+String Processor(const String& var)
+{
+	//Serial.println(var);
+	if(var == "POWERPLACEHOLDER")
+	{
+		String str = "<p><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"output\" " + acPowerState() + "><span class=\"slider\"></span></label></p>";
+		return str;
+	}
+	if(var == "ACMODEPLACEHOLDER")
+	{
+		String stCool = acMode == kHitachiAc1Cool ? "checked" : "";
+		String stHeat = acMode == kHitachiAc1Heat ? "checked" : "";
+		String stFan = acMode == kHitachiAc1Fan ? "checked" : "";
+		String stDry = acMode == kHitachiAc1Dry ? "checked" : "";
+		String stAuto = acMode == kHitachiAc1Auto ? "checked" : "";
+		String str =
+		"<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Cool) + "' " + stCool + "/>Cool \
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Heat) + "' " + stHeat + "/>Heat \
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Fan) + "' " + stFan + "/>Fan \
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Dry) + "' " + stDry + "/>Dry \
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Auto) + "' " + stAuto + "/>Auto";
+		return str;
+	}
+	if(var == "FANMODEPLACEHOLDER")
+	{
+		String stLow = acFan == kHitachiAc1FanLow ? "checked" : "";
+		String stMed = acFan == kHitachiAc1FanMed? "checked" : "";
+		String stHigh = acFan == kHitachiAc1FanHigh ? "checked" : "";
+		String stAuto = acFan == kHitachiAc1FanAuto ? "checked" : "";
+		String str = 
+		"<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanLow) + "' " + stLow + "/>Low \
+		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanMed) + "' " + stMed + "/>Med \
+		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanHigh) + "' " + stHigh + "/>High \
+		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanAuto) + "' " + stAuto + "/>Auto";
+		return str;
+	}
+	if(var == "TEMPPLACEHOLDER")
+	{
+		String str = "<input type='range' min='16' max='32' class='sliderTemp' id='acTempSlider' onchange='ac()' value='" + IntToString(acTemp) + "'/>";
+		return str;
+	}
+	if(var == "DEVICEINFO")
+	{
+		return GetDeviceInfoString();
+	}
+
+	return String();
+}
+
+String GetContentType(String filename)
+{
+  //if(server.hasArg("download")) return "application/octet-stream";
+  if(filename.startsWith("/u/")) return "application/octet-stream";
+  else if(filename.endsWith(".htm")) return "text/html";
+  else if(filename.endsWith(".html")) return "text/html";
+  else if(filename.endsWith(".css")) return "text/css";
+  else if(filename.endsWith(".js")) return "application/javascript";
+  else if(filename.endsWith(".png")) return "image/png";
+  else if(filename.endsWith(".gif")) return "image/gif";
+  else if(filename.endsWith(".jpg")) return "image/jpeg";
+  else if(filename.endsWith(".ico")) return "image/x-icon";
+  else if(filename.endsWith(".xml")) return "text/xml";
+  else if(filename.endsWith(".pdf")) return "application/x-pdf";
+  else if(filename.endsWith(".zip")) return "application/x-zip";
+  else if(filename.endsWith(".gz")) return "application/x-gzip";
+  return "text/plain";
+}
+
+void OnNotFound(AsyncWebServerRequest *request)
+{
+  String message = "";
+  String path = request->url();
+  Serial.print("request to: " + path + "\n");
+  String contentType = GetContentType(path);
+  String pathWithGz = path + ".gz";
+  if(SPIFFS.exists(pathWithGz) || SPIFFS.exists(path))
+  {
+    if(SPIFFS.exists(pathWithGz))
+	{
+      path += ".gz";
+    }
+	AsyncWebServerResponse *response =  request->beginResponse(SPIFFS, path, contentType);
+	request->send(response);
+    return;
+  }
+
+  Serial.print("File not Found:");
+  Serial.println(path);
+  message += "404 The content you are looking for was not found.\n\n";
+  message += "Path: ";
+  message += path;
+  message += "\nMethod: ";
+  message += (request->method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArgs: ";
+  message += request->args();
+  message += "\n";
+  for(uint8_t i = 0; i < request->args(); i++)
+  {
+    message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
+  }
+  request->send_P(404, "text/plain", message.c_str());
+}
+
+bool ConnectWiFi(String ssid,String pwd)
+{
+	Serial.println("Trying WiFi: " + ssid);
+	int connectCount = 0;
+	WiFi.begin(ssid.c_str(), pwd.c_str());
+	while(!WiFi.isConnected() && connectCount++ < 9)
+	{
+		delay(500);
+		Serial.print(".");
+	}
+	if(WiFi.isConnected())
+	{
+		Serial.println("");
+		Serial.print("Connected to WiFi: ");
+		Serial.println(ssid);
+		Serial.print("IP address: ");
+		Serial.println(WiFi.localIP());
+		connectCount = 0;
+		WiFi.setAutoReconnect(true);
+		MDNS.addService("http", "tcp", 80);
+		return true;
+	}
+	Serial.println("Connect fail!");
+	return false;
+}
+
 void setup()
 {
-	oledColor = GetOledColor();
-
 	pinMode(LED, OUTPUT);
 	digitalWrite(LED, 1);
 
@@ -312,7 +463,6 @@ void setup()
 	delay(10);
 
 	print_wakeup_reason();
-	wakeupCount++;
 
 	/*After waking up from sleep, the IO pad used for wakeup will be configured as RTC IO. 
 	Therefore, before using this pad as digital GPIO, 
@@ -326,12 +476,31 @@ void setup()
 	pinMode(USB_DET, INPUT);
 	pinMode(BAT_ADCEN, OUTPUT);
 
+	SPIFFS.begin();
+	if(SPIFFS.exists(configFile))
+	{
+		File file = SPIFFS.open(configFile, FILE_READ);
+		String data = file.readString();
+		DynamicJsonDocument doc(1024);
+		deserializeJson(doc, data);
+		JsonObject pObj = doc.getMember("ac").as<JsonObject>();
+
+		acMode = pObj["mode"].as<int>();
+		acFan = pObj["fan"].as<int>();
+		acTemp = pObj["temp"].as<int>();
+
+		upCount = doc.getOrAddMember("upCount").as<uint32_t>();
+		Serial.printf("device upCount: %d\n", upCount);
+		file.close();
+	}
+
 	Wire.setPins(DIS_SDA, DIS_SCL);
 	if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
 	{
 		Serial.println(F("SSD1306 allocation failed"));
 		//for(;;); // Don't proceed, loop forever
 	}
+	oledColor = GetOledColor();
 	display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
 /*
 	//the adafruit logo
@@ -346,13 +515,8 @@ void setup()
 	display.println("AC Remote");
 	display.display();
 
-	SPIFFS.begin();
-
 	if (SW_ACTIVE)
 	{
-		//连接状态 0未连接 1已连接
-		int connect_status = 0;
-		// 读取配置文件
 		if(SPIFFS.exists(configFile))
 		{
 			File file = SPIFFS.open(configFile, "r");
@@ -367,9 +531,8 @@ void setup()
 			Serial.println(arr.size());
 			for(unsigned int i=0;i<arr.size();i++)
 			{
-				if(connectWifi(arr[i]["ssid"],arr[i]["pwd"]))
+				if(ConnectWiFi(arr[i]["ssid"],arr[i]["pwd"]))
 				{
-					connect_status = 1;
 					break;
 				}
 			}
@@ -382,14 +545,10 @@ void setup()
 		}
 
 		//未连接wifi的时候使用内置ssid和密码尝试连接，如果仍无法连接到wifi则开启AP
-		if(connect_status==0)
+		if(!WiFi.isConnected())
 		{
 			Serial.println("使用内置连接尝试");
-			if(connectWifi(ssid, password))
-			{
-				connect_status = 1;
-			}
-			else
+			if(!ConnectWiFi(ssid, password))
 			{
 				Serial.println("使用内置连接失败,开启AP等待用户连接");
 				Serial.println("SSID:"+String(apssid));
@@ -425,7 +584,72 @@ void setup()
 			}
 		}
 
-		WebConfig();
+		server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+			request->send(SPIFFS, "/index.html", String(), false, Processor);
+		});
+		// Send a GET request to <ESP_IP>/ac?value=<inputMessage>
+		server.on("/ac", HTTP_GET, [] (AsyncWebServerRequest *request){
+			String inputMessage;
+			// GET input1 value on <ESP_IP>/slider?value=<inputMessage>
+			bool valueOk = false;
+			if (request->hasParam(PARAM_INPUT_VALUE))
+			{
+				inputMessage = request->getParam(PARAM_INPUT_VALUE)->value();
+				int val = inputMessage.toInt();
+				acMode = val / 10000;
+				acFan = val % 10000 / 100;
+				acTemp = val % 100;
+				if (acTemp < 16 || acTemp > 32)
+				{
+					acTemp = 25;
+				}
+				ac.setMode(acMode);
+				ac.setFan(acFan);
+				ac.setTemp(acTemp);
+				valueOk = true;
+			}
+			if(request->hasParam(PARAM_INPUT_SWING))
+			{
+				inputMessage = request->getParam(PARAM_INPUT_SWING)->value();
+				int val = inputMessage.toInt();
+				if (val == 1)
+				{
+					//swing X
+					AcSwingVSwitch();
+				}
+				else if (val == 2)
+				{
+					//swing Y same function as X right now
+					AcSwingVSwitch();
+				}
+			}
+			else if(request->hasParam(PARAM_INPUT_SWITCH))
+			{
+				inputMessage = request->getParam(PARAM_INPUT_SWITCH)->value();
+				bool power = inputMessage.toInt() > 0;
+				if (power != ac.getPower())
+				{
+					AcPowerToggle();
+				}
+			}
+			else if(valueOk)
+			{
+				AcCmdSend();
+			}
+			else
+			{
+				inputMessage = "No message sent";
+			}
+			Serial.println(inputMessage);
+			request->send(200, "text/plain", "OK");
+		});
+		server.onNotFound([](AsyncWebServerRequest *request){
+			//request->send(404, "text/plain", "The content you are looking for was not found.");
+			OnNotFound(request);	//favicon.ico
+		});
+
+		//WebConfig();
+		server.begin();
 		openOTA();
 
 		/*use mdns for host name resolution*/
@@ -462,37 +686,21 @@ void setup()
 	ac.setSwingToggle(false);
 	ac.setSwingH(false);
 	ac.setSwingV(false);
-	if (bkpInit == 0xc5)
+
+	if (acMode == 0 || acFan == 0 || acTemp == 0)
 	{
-		AcRecovery();
+		acMode = kHitachiAc1Cool;
+		acFan = kHitachiAc1FanLow;
+		acTemp = kHitachiAc1TempAuto;
 	}
-	else
+	if(!SPIFFS.exists(configFile))
 	{
-		if(SPIFFS.exists(acConfig))
-		{
-			File file = SPIFFS.open(acConfig, "r");
-			String data = file.readString();
-			DynamicJsonDocument doc(512);
-			deserializeJson(doc, data);
-			acMode = doc["mode"].as<int>();
-			acFan = doc["fan"].as<int>();
-			acTemp = doc["temp"].as<int>();
-		}
-		if (acMode == 0 || acFan == 0 || acTemp == 0)
-		{
-			acMode = kHitachiAc1Cool;
-			acFan = kHitachiAc1FanLow;
-			acTemp = kHitachiAc1TempAuto;
-		}
-		if(!SPIFFS.exists(acConfig))
-		{
-			AcBackup();
-		}
-		ac.setMode(acMode);
-		ac.setTemp(acTemp);
-		ac.setFan(acFan);
-		ac.setSwingV(false);
+		AcBackup();
 	}
+	ac.setMode(acMode);
+	ac.setTemp(acTemp);
+	ac.setFan(acFan);
+
 	printState();
 	digitalWrite(LED, 0);
 }
@@ -645,7 +853,6 @@ void loop()
 
 	if (lastRefresh == 0 || epochMills >= 1000)
 	{
-		uptime++;
 		lastRefresh = curMs;
 		batteryVol = GetBatteryVol();
 		//Serial.printf("batVal: %dmV\n", batteryVol);
@@ -680,8 +887,7 @@ void loop()
 			Serial.println("\nGoing to restart by SW active!");
 			ESP.restart();
 		}
-		
-		server.handleClient();
+		//server.handleClient();
 		ArduinoOTA.handle();
 		// Check if the IR code has been received.
 		if (irrecv.decode(&results))
@@ -827,29 +1033,35 @@ void AcFanSpeed()
 
 void AcModeSwitch()
 {
-	uint8_t mode = ac.getMode();
-	switch (mode)
+	acMode = ac.getMode();
+	switch (acMode)
 	{
 	case kHitachiAc1Dry:
-		mode = kHitachiAc1Fan;
+		acMode = kHitachiAc1Fan;
 		break;
 	case kHitachiAc1Fan:
-		mode = kHitachiAc1Cool;
+		acMode = kHitachiAc1Cool;
 		break;
 		case kHitachiAc1Cool:
-		mode = kHitachiAc1Heat;
+		acMode = kHitachiAc1Heat;
 		break;
 		case kHitachiAc1Heat:
-		mode = kHitachiAc1Auto;
+		acMode = kHitachiAc1Auto;
 		break;
 		case kHitachiAc1Auto:
-		mode = kHitachiAc1Dry;
+		acMode = kHitachiAc1Dry;
 		break;
 	default:
-		mode = kHitachiAc1Fan;
+		acMode = kHitachiAc1Fan;
 		break;
 	}
-	ac.setMode(mode);
+
+	if (acMode == kHitachiAc1Fan && acFan == kHitachiAcFanAuto)//auto fan speed not allow in fan mode
+	{
+		acFan = kHitachiAcFanLow;
+		ac.setFan(acFan);
+	}
+	ac.setMode(acMode);
 	AcCmdSend();
 }
 
@@ -857,8 +1069,6 @@ void ButtonActionGo()
 {
 	idleClock = 0;
 	Serial.println("BTN GO CLICK");
-	Serial.printf("Uptime: %dd %02d:%02d:%02d\n\n", (int)(uptime / 86400), (int)(uptime % 86400 / 3600), (int)(uptime % 86400 % 3600 / 60)
-		, (int)(uptime % 86400 % 3600 % 60 % 60));
 	AcPowerToggle();
 }
 void ButtonActionOk()
@@ -999,4 +1209,22 @@ void LowBatteryAction()
 	esp_sleep_pd_config(ESP_PD_DOMAIN_MAX, ESP_PD_OPTION_OFF);	//force shutdown rtc power
 
 	esp_deep_sleep_start();
+}
+
+String GetDeviceInfoString()
+{
+	String result = "Device upCount: " + IntToString(upCount);
+	// Display the settings.
+	result += ", Hitachi A/C remote is in the following state:";
+	result += ac.toString().c_str();
+	// Display the encoded IR sequence.
+	unsigned char* ir_code = ac.getRaw();
+	result += ", IR Code: 0x";
+	char irHex[8] = {0};
+	for (uint8_t i = 0; i < kHitachiAc1StateLength; i++)
+	{
+		sprintf(irHex, "%02X", ir_code[i]);
+		result += String(irHex);
+	}
+	return result;
 }
