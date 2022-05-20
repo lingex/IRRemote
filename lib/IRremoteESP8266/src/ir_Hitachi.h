@@ -212,18 +212,18 @@ union HitachiAc1Protocol{
     uint8_t SwingV       :1;
     uint8_t SwingH       :1;
 
-    power & swingV works
-    uint8_t Power        :1;
+    //power & swingV works
+    uint8_t SwingV       :1;
     uint8_t SwingH       :1;
     uint8_t SwingToggle  :1;
-    uint8_t SwingV       :1;
+    uint8_t Power        :1;
     uint8_t PowerToggle  :1;
     uint8_t Sleep        :3;
     */
-    uint8_t Power        :1;
-    uint8_t SwingH       :1;
-    uint8_t SwingToggle  :1;
     uint8_t SwingV       :1;
+    uint8_t Power        :1;
+    uint8_t SwingToggle  :1;
+    uint8_t SwingH       :1;
     uint8_t PowerToggle  :1;
     uint8_t Sleep        :3;
     // Byte 12
