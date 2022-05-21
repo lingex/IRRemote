@@ -27,21 +27,30 @@
   <legend align='center'>Mode</legend>
   %ACMODEPLACEHOLDER%
   </fieldset>
-  </br></br>
+  <br><br>
 
   <fieldset style='width:300px; border-radius: 8px' id="fieldsetACFan" onchange="ac()">
   <legend align='center'>Fan</legend>
   %FANMODEPLACEHOLDER%
   </fieldset>
 
-  </br></br>
+  <br><br>
   Temp: <span id="acTemp"></span>
-  </br>
+  <br>
   %TEMPPLACEHOLDER%
 
-  <p><button type="button" class="button" onclick="swingAction('1')">Swing X</button>
-  <button type="button" class="button" onclick="swingAction('2')">Swing Y</button></br></p>
+  <p>
+  <button type="button" class="button" onclick="swingAction('1')">Swing X</button>
+  <button type="button" class="button" onclick="swingAction('2')">Swing Y</button>
+  <br>
+  </p>
   </center>
+
+  <div style="position: relative;">
+    <div style="position: absolute; bottom: -300px; background-color: rgb(207, 237, 248)">
+    %DEVICEINFO%
+    </div>
+  </div>
 
 <script>
 var tempSlider = document.getElementById("acTempSlider");

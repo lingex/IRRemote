@@ -53,16 +53,25 @@ uint64_t chipid;
 int64_t btnChkMs = 0;
 
 const uint16_t lowestBatVol = 3450;	//protect battery voltage
+//static std::map<uint32_t, std::pair<uint32_t, const unsigned char *>> batVolIconMap = 
+//{
+//	//<index, <voltage, icon>>
+//	{6, {4050, bat6_icon8x8}},
+//	{5, {3950, bat5_icon8x8}},
+//	{4, {3880, bat4_icon8x8}},
+//	{3, {3760, bat3_icon8x8}},
+//	{2, {3700, bat2_icon8x8}},
+//	{1, {3620, bat1_icon8x8}},
+//	{0, {0,    bat0_icon8x8}}
+//};
 static std::map<uint32_t, std::pair<uint32_t, const unsigned char *>> batVolIconMap = 
 {
 	//<index, <voltage, icon>>
-	{6, {4050, bat6_icon8x8}},
-	{5, {3950, bat5_icon8x8}},
-	{4, {3880, bat4_icon8x8}},
-	{3, {3760, bat3_icon8x8}},
-	{2, {3700, bat2_icon8x8}},
-	{1, {3620, bat1_icon8x8}},
-	{0, {0,    bat0_icon8x8}}
+	{4, {3980, bat4_icon16x8}},
+	{3, {3850, bat3_icon16x8}},
+	{2, {3780, bat2_icon16x8}},
+	{1, {3620, bat1_icon16x8}},
+	{0, {0,    bat0_icon16x8}}
 };
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -151,9 +160,6 @@ uint16_t idleClock = 0;
 const uint16_t sleepClock = 25;
 
 //RTC_DATA_ATTR uint8_t acMode = 0;
-uint8_t acMode = 0;
-uint8_t acFan = 0;
-uint8_t acTemp = 0;
 uint32_t upCount = 0;
 uint16_t oledColor = SSD1306_WHITE;
 
@@ -201,9 +207,6 @@ uint16_t GetOledColor()
 void AcBackup()
 {
 	Serial.println("AC state backup.");
-	acMode = ac.getMode();
-	acFan = ac.getFan();
-	acTemp = ac.getTemp();
 
 	String data = "";
 	DynamicJsonDocument doc(1024);
@@ -214,9 +217,9 @@ void AcBackup()
 		String data = file.readString();
 		deserializeJson(doc, data);
 		auto pJson = doc.getOrAddMember("ac").as<JsonObject>();
-		pJson["mode"].set<int>(acMode);
-		pJson["fan"].set<int>(acFan);
-		pJson["temp"].set<int>(acTemp);
+		pJson["mode"].set<int>(ac.getMode());
+		pJson["fan"].set<int>(ac.getFan());
+		pJson["temp"].set<int>(ac.getTemp());
 
 		doc["upCount"] = ++upCount;
 		file.close();
@@ -227,45 +230,53 @@ void AcBackup()
 	fileW.close();
 }
 
-void AcRecovery()
-{
-	Serial.println("AC state restore.");
-	ac.setMode(acMode);
-	ac.setFan(acFan);
-	ac.setTemp(acTemp);
-}
-
 String AcModeString(uint8_t mode)
 {
-  String result = "";
-  result.reserve(22);  // ", Mode: NNN (UNKNOWN)"
-  result += irutils::addIntToString(mode, kModeStr, false);
-  result += kSpaceLBraceStr;
-  if (mode == kHitachiAc1Auto) result += kAutoStr;
-    else if (mode == kHitachiAc1Cool) result += kCoolStr;
-    else if (mode == kHitachiAc1Heat) result += kHeatStr;
-    else if (mode == kHitachiAc1Dry)  result += kDryStr;
-    else if (mode == kHitachiAc1Fan)  result += kFanStr;
-    else
-      result += kUnknownStr;
-    return result + ')';
+	String result = "UNKNOW";
+	switch (mode)
+	{
+	case kHitachiAc1Cool:
+		result = "Cool";
+		break;
+	case kHitachiAc1Heat:
+		result = "Heat";
+		break;
+	case kHitachiAc1Dry:
+		result = "Dry";
+		break;
+	case kHitachiAc1Fan:
+		result = "Fan";
+		break;
+	case kHitachiAc1Auto:
+		result = "Auto";
+		break;
+	default:
+		break;
+	}
+	return result;
 }
 
 String AcFanString(uint8_t speed)
 {
-	String result = "";
-    result.reserve(21);  // ", Fan: NNN (UNKNOWN)"
-    result += irutils::addIntToString(speed, kFanStr, false);
-    result += kSpaceLBraceStr;
-    if (speed == kHitachiAc1FanHigh)           result += kHighStr;
-    else if (speed == kHitachiAc1FanLow)       result += kLowStr;
-    else if (speed == kHitachiAc1FanAuto) result += kAutoStr;
-    //else if (speed == kHitachiAc1FanLow)     result += kQuietStr;
-    else if (speed == kHitachiAc1FanMed)    result += kMediumStr;
-    //else if (speed == kHitachiAc1FanHigh)   result += kMaximumStr;
-    else
-      result += kUnknownStr;
-    return result + ')';
+	String result = "UNKNOW";
+	switch (speed)
+	{
+	case kHitachiAc1FanHigh:
+		result = "High";
+		break;
+	case kHitachiAc1FanMed:
+		result = "Med";
+		break;
+	case kHitachiAc1FanLow:
+		result = "Low";
+		break;
+	case kHitachiAc1FanAuto:
+		result = "Auto";
+		break;
+	default:
+		break;
+	}
+	return result;
 }
 
 /*
@@ -329,40 +340,42 @@ String Processor(const String& var)
 	//Serial.println(var);
 	if(var == "POWERPLACEHOLDER")
 	{
-		String str = "<p><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"output\" " + acPowerState() + "><span class=\"slider\"></span></label></p>";
+		String str = "<p><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"powerbtn\" " + acPowerState() + "><span class=\"slider\"></span></label></p>";
 		return str;
 	}
 	if(var == "ACMODEPLACEHOLDER")
 	{
-		String stCool = acMode == kHitachiAc1Cool ? "checked" : "";
-		String stHeat = acMode == kHitachiAc1Heat ? "checked" : "";
-		String stFan = acMode == kHitachiAc1Fan ? "checked" : "";
-		String stDry = acMode == kHitachiAc1Dry ? "checked" : "";
-		String stAuto = acMode == kHitachiAc1Auto ? "checked" : "";
+		uint8_t mode = ac.getMode();
+		String stCool = mode == kHitachiAc1Cool ? "checked" : "";
+		String stHeat = mode == kHitachiAc1Heat ? "checked" : "";
+		String stFan = mode == kHitachiAc1Fan ? "checked" : "";
+		String stDry = mode == kHitachiAc1Dry ? "checked" : "";
+		String stAuto = mode == kHitachiAc1Auto ? "checked" : "";
 		String str =
-		"<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Cool) + "' " + stCool + "/>Cool \
-		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Heat) + "' " + stHeat + "/>Heat \
-		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Fan) + "' " + stFan + "/>Fan \
-		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Dry) + "' " + stDry + "/>Dry \
+		"<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Cool) + "' " + stCool + "/>Cool\
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Heat) + "' " + stHeat + "/>Heat\
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Fan) + "' " + stFan + "/>Fan\
+		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Dry) + "' " + stDry + "/>Dry\
 		<input type='radio' name='acMODE' value='" + IntToString(kHitachiAc1Auto) + "' " + stAuto + "/>Auto";
 		return str;
 	}
 	if(var == "FANMODEPLACEHOLDER")
 	{
-		String stLow = acFan == kHitachiAc1FanLow ? "checked" : "";
-		String stMed = acFan == kHitachiAc1FanMed? "checked" : "";
-		String stHigh = acFan == kHitachiAc1FanHigh ? "checked" : "";
-		String stAuto = acFan == kHitachiAc1FanAuto ? "checked" : "";
+		uint8_t fSpeed = ac.getFan();
+		String stLow = fSpeed == kHitachiAc1FanLow ? "checked" : "";
+		String stMed = fSpeed == kHitachiAc1FanMed? "checked" : "";
+		String stHigh = fSpeed == kHitachiAc1FanHigh ? "checked" : "";
+		String stAuto = fSpeed == kHitachiAc1FanAuto ? "checked" : "";
 		String str = 
-		"<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanLow) + "' " + stLow + "/>Low \
-		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanMed) + "' " + stMed + "/>Med \
-		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanHigh) + "' " + stHigh + "/>High \
+		"<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanLow) + "' " + stLow + "/>Low\
+		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanMed) + "' " + stMed + "/>Med\
+		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanHigh) + "' " + stHigh + "/>High\
 		<input type='radio' name='fanSpeed' value='" + IntToString(kHitachiAc1FanAuto) + "' " + stAuto + "/>Auto";
 		return str;
 	}
 	if(var == "TEMPPLACEHOLDER")
 	{
-		String str = "<input type='range' min='16' max='32' class='sliderTemp' id='acTempSlider' onchange='ac()' value='" + IntToString(acTemp) + "'/>";
+		String str = "<input type='range' min='16' max='32' class='sliderTemp' id='acTempSlider' onchange='ac()' value='" + IntToString(ac.getTemp()) + "'/>";
 		return str;
 	}
 	if(var == "DEVICEINFO")
@@ -476,6 +489,16 @@ void setup()
 	pinMode(USB_DET, INPUT);
 	pinMode(BAT_ADCEN, OUTPUT);
 
+	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
+	ac.begin();
+	ac.setModel(R_LT0541_HTA_B);
+	ac.setSleep(0);
+	ac.setPower(false);
+	ac.setPowerToggle(false);
+	ac.setSwingToggle(false);
+	ac.setSwingH(false);
+	ac.setSwingV(false);
+
 	SPIFFS.begin();
 	if(SPIFFS.exists(configFile))
 	{
@@ -485,13 +508,20 @@ void setup()
 		deserializeJson(doc, data);
 		JsonObject pObj = doc.getMember("ac").as<JsonObject>();
 
-		acMode = pObj["mode"].as<int>();
-		acFan = pObj["fan"].as<int>();
-		acTemp = pObj["temp"].as<int>();
+		ac.setMode(pObj["mode"].as<int>());
+		ac.setFan(pObj["fan"].as<int>());
+		ac.setTemp(pObj["temp"].as<int>());
 
 		upCount = doc.getOrAddMember("upCount").as<uint32_t>();
 		Serial.printf("device upCount: %d\n", upCount);
 		file.close();
+	}
+	else
+	{
+		ac.setMode(kHitachiAc1Cool);
+		ac.setTemp(kHitachiAc1TempAuto);
+		ac.setFan(kHitachiAc1FanLow);
+		AcBackup();
 	}
 
 	Wire.setPins(DIS_SDA, DIS_SCL);
@@ -595,9 +625,9 @@ void setup()
 			{
 				inputMessage = request->getParam(PARAM_INPUT_VALUE)->value();
 				int val = inputMessage.toInt();
-				acMode = val / 10000;
-				acFan = val % 10000 / 100;
-				acTemp = val % 100;
+				uint8_t acMode = val / 10000;
+				uint8_t acFan = val % 10000 / 100;
+				uint8_t acTemp = val % 100;
 				if (acTemp < 16 || acTemp > 32)
 				{
 					acTemp = 25;
@@ -676,37 +706,13 @@ void setup()
 
 	batteryVol = GetBatteryVol();
 
-	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
-	ac.begin();
-	ac.setModel(R_LT0541_HTA_B);
-	ac.setSleep(0);
-	ac.setPower(false);
-	ac.setPowerToggle(false);
-	ac.setSwingToggle(false);
-	ac.setSwingH(false);
-	ac.setSwingV(false);
-
-	if (acMode == 0 || acFan == 0 || acTemp == 0)
-	{
-		acMode = kHitachiAc1Cool;
-		acFan = kHitachiAc1FanLow;
-		acTemp = kHitachiAc1TempAuto;
-	}
-	if(!SPIFFS.exists(configFile))
-	{
-		AcBackup();
-	}
-	ac.setMode(acMode);
-	ac.setTemp(acTemp);
-	ac.setFan(acFan);
-
 	printState();
 	digitalWrite(LED, 0);
 }
 
-const unsigned char * GetBatIcon()
+const unsigned char * GetBatteryIcon()
 {
-	const unsigned char * pIcon = bat0_icon8x8;
+	const unsigned char * pIcon = batVolIconMap[0].second;
 	int64_t curSec = millis() / 1000;
 	uint8_t index = 0;
 	static uint8_t chargeStep;
@@ -747,20 +753,28 @@ const unsigned char * GetBatIcon()
 void printOLED()
 {
 	display.clearDisplay();
-	// text display tests
-	display.setTextSize(1);
-	display.setCursor(1, 1);
-	display.printf("%s", AcModeString(ac.getMode()).c_str());
-	display.setCursor(1, 12);
-	display.printf("Temp: %dC", ac.getTemp());
-	
-	//display.setCursor(1, 24);
-	//display.printf("Swing: %s", ac.getSwingToggle() ? "on":"off");
-	display.setCursor(1, 24);
-	display.printf("%s", AcFanString(ac.getFan()).c_str());
 
-	uint8_t iconPlace = 120;
-	const uint8_t iconDis = 10;
+	//MODE
+	display.setTextSize(1);
+	display.setCursor(1, 4);
+	display.printf("Mode:%s", AcModeString(ac.getMode()).c_str());
+
+	//TEMPERATURE
+	display.setTextSize(2);
+	display.setCursor(60, 16);
+	display.printf("%dC", ac.getTemp());
+
+	display.setTextSize(1);
+
+	//FAN SPEED
+	display.setCursor(1, 23);
+	display.printf("Fan:%s", AcFanString(ac.getFan()).c_str());
+	//display.drawBitmap(60, 16, GetFanIcon(), 16, 8, SSD1306_WHITE);
+
+	display.setTextSize(1);
+
+	uint8_t iconPlace = 111;
+	const uint8_t iconDis = 18;
 
 	//battery icon
 	{
@@ -768,7 +782,7 @@ void printOLED()
 		display.setCursor(96, 12);
 		display.printf("%0.2fV", batteryVol / 1000.0);
 	#endif
-		display.drawBitmap(iconPlace, 1, GetBatIcon(), 8, 8, SSD1306_WHITE);
+		display.drawBitmap(iconPlace, 1, GetBatteryIcon(), 16, 8, SSD1306_WHITE);
 		iconPlace -= iconDis;
 	}
 	//usb icon
@@ -778,7 +792,7 @@ void printOLED()
 
 		//display.setCursor(106, 1);
 		//display.print("USB");
-		display.drawBitmap(iconPlace, 1, usb_icon8x8, 8, 8, SSD1306_WHITE);
+		display.drawBitmap(iconPlace, 1, usb_icon16x8, 16, 8, SSD1306_WHITE);
 		iconPlace -= iconDis;
 	}
 	//wifi icon
@@ -786,7 +800,7 @@ void printOLED()
 	{
 		//display.setCursor(72, 12);
 		//display.print("WIFI");
-		display.drawBitmap(iconPlace, 1, wifi_icon8x8, 8, 8, SSD1306_WHITE);
+		display.drawBitmap(iconPlace, 1, wifi_icon16x8, 16, 8, SSD1306_WHITE);
 		iconPlace -= iconDis;
 	}
 	//sleep countdown
@@ -805,7 +819,7 @@ void printState()
 	printOLED();
 
 	// Display the settings.
-	Serial.println("Hitachi A/C remote is in the following state:");
+	Serial.println("Remote state: ");
 	Serial.printf("  %s\n", ac.toString().c_str());
 	// Display the encoded IR sequence.
 	unsigned char* ir_code = ac.getRaw();
@@ -1032,7 +1046,7 @@ void AcFanSpeed()
 
 void AcModeSwitch()
 {
-	acMode = ac.getMode();
+	uint8_t acMode = ac.getMode();
 	switch (acMode)
 	{
 	case kHitachiAc1Dry:
@@ -1055,10 +1069,9 @@ void AcModeSwitch()
 		break;
 	}
 
-	if (acMode == kHitachiAc1Fan && acFan == kHitachiAcFanAuto)//auto fan speed not allow in fan mode
+	if (acMode == kHitachiAc1Fan && ac.getFan() == kHitachiAcFanAuto)//auto fan speed not allow in fan mode
 	{
-		acFan = kHitachiAcFanLow;
-		ac.setFan(acFan);
+		ac.setFan(kHitachiAcFanLow);
 	}
 	ac.setMode(acMode);
 	AcCmdSend();
@@ -1213,8 +1226,10 @@ void LowBatteryAction()
 String GetDeviceInfoString()
 {
 	String result = "Device upCount: " + IntToString(upCount);
+	result += ", Charging: " + String((USB_ACTIVE) ? "yes" : "no");
+	result += ", Battery voltage: " + IntToString(batteryVol) + " mV";
 	// Display the settings.
-	result += ", Hitachi A/C remote is in the following state:";
+	result += ", Remote state: ";
 	result += ac.toString().c_str();
 	// Display the encoded IR sequence.
 	unsigned char* ir_code = ac.getRaw();
