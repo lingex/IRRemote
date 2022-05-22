@@ -16,6 +16,7 @@
 #include <OneButton.h>
 #include <IRac.h>
 #include <IRtext.h>
+#include "WiFiManager.h"
 
 #include "main.h"
 #include "ota.h"
@@ -172,12 +173,6 @@ const uint16_t sleepClock = 25;
 //RTC_DATA_ATTR uint8_t acMode = 0;
 uint32_t upCount = 0;
 uint16_t oledColor = SSD1306_WHITE;
-
-//web
-const char* PARAM_INPUT_STATE = "state";
-const char* PARAM_INPUT_VALUE = "value";
-const char* PARAM_INPUT_SWITCH = "switch";
-const char* PARAM_INPUT_SWING = "swing";
 
 void handleModeInt();
 void handleOkInt();
@@ -550,55 +545,45 @@ void setup()
 			Serial.println("File not found:" + configFile);
 		}
 
-		//未连接wifi的时候使用内置ssid和密码尝试连接，如果仍无法连接到wifi则开启AP
 		if(!WiFi.isConnected())
 		{
-			Serial.println("使用内置连接尝试");
 			if(!ConnectWiFi(ssid, password))
 			{
-				Serial.println("使用内置连接失败,开启AP等待用户连接");
-				Serial.println("SSID:"+String(apssid));
-				Serial.println("PASSWORD:"+String(appassword));
-				WiFi.mode(WIFI_AP);
-				//WIFI_AP_STA模式不稳定，不建议使用
-				//WiFi.mode(WIFI_AP_STA);
-				delay(500);
-				/*
-				ssid:热点名,最大63个英文字符
-				password:可选参数,可以没有密码
-				channel:信道1-13,默认1
-				hidden:是否隐藏,true是隐藏
-				WiFi.softAP(ssid, password, channel, hidden);
+				WiFiManager wifiManager;
 
-				配置网关等
-				IPAddress local_IP(192,168,4,4);
-				IPAddress gateway(192,168,4,1);
-				IPAddress subnet(255,255,255,0);
-				WiFi.softAPConfig(local_IP, gateway, subnet);
-				*/
-				boolean ap_status = WiFi.softAP(apssid, appassword);
-				if(ap_status){
-				Serial.println("AP Ready!!");
-				IPAddress myIP = WiFi.softAPIP();
-				Serial.print("AP IP : ");
-				Serial.println(myIP);
-				}
-				else
+				wifiManager.resetSettings();
+				//in seconds
+				wifiManager.setTimeout(300);
+				
+				//set custom ip for portal
+				//wifiManager.setAPStaticIPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
+
+				//fetches ssid and pass from eeprom and tries to connect
+				//if it does not connect it starts an access point with the specified name
+				//here  "AutoConnectAP"
+				//and goes into a blocking loop awaiting configuration
+				if (wifiManager.autoConnect(apssid, appassword))
 				{
-					Serial.println("Fail!!");
+					Serial.println("failed to connect and hit timeout");
+					delay(3000);
+					//reset and try again, or maybe put it to deep sleep
+					ESP.restart();
 				}
+				//or use this for auto generated name ESP + ChipID
+				//wifiManager.autoConnect();
 			}
 		}
 
-		//WebConfig();
 		server.begin();
 		openOTA();
 
 		/*use mdns for host name resolution*/
-		if (!MDNS.begin(host)) { //http://esp32.local
+		if (!MDNS.begin(host))
+		{ //http://esp32.local
 			Serial.println("Error setting up MDNS responder!");
-			while (1) {
-			delay(1000);
+			while (1) 
+			{
+				delay(1000);
 			}
 		}
 		Serial.println("mDNS responder started");
@@ -866,6 +851,7 @@ void loop()
 							//client.println("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js\"></script>");
 							//client.println("<script src=\"https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js\"></script>");
 							client.println("<script src=\"https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js\"></script>");
+							//client.println("<script src=\"/jquery.js\"></script>");
 									
 							// Web Page
 							client.println("</head><body><h1>Hitachi AC</h1>");
@@ -894,7 +880,7 @@ void loop()
 							client.println("</center>");
 
 							//temp slider
-							client.println("<p>Temp: <span id=\"acTemp\"></span></p>");
+							client.println("<p><nobr>Temp: <span id=\"acTemp\"></span>&#x2103</nobr></p>"); //&#x2103: ℃
 							client.println("<input type='range' min='16' max='32' class='sliderTemp' id='acTempSlider' onchange='ac()' value='" + String(ac.getTemp()) + "'/>");
 
 							client.println("<p>");
@@ -1032,7 +1018,6 @@ void loop()
 						currentLine += c;      // add it to the end of the currentLine
 					}
 				}
-				ArduinoOTA.handle();
 			}
 			// Clear the header variable
 			header = "";
