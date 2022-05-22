@@ -143,12 +143,6 @@ IRHitachiAc1 ac(kIrLedPin);
 
 WiFiServer server(80);
 
-#define BUTTON_STYPE_1 "style='width:120px; height:60px; padding: 15px 25px; font-size: 18px; cursor: pointer; text-align:\
- center; text-decoration: none; outline: none; color: #fff; background-color: #4CAF50; border: none; border-radius: 8px; margin: 4px 2px;'"
-
-#define BUTTON_STYPE_2 "style='width:120px; height:60px; padding: 15px 25px; font-size: 18px; cursor: pointer; text-align:\
- center; text-decoration: none; outline: none; color: #fff; background-color: #f44336; border: none; border-radius: 8px; margin: 4px 2px;'"
- 
 // Current time
 unsigned long currentTime = millis();
 // Previous time
