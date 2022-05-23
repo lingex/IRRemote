@@ -21,10 +21,8 @@
 #include "main.h"
 #include "ota.h"
 #include "rtc_io.h"
-#include "icons.h"
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <U8g2lib.h>
 
 #include <ir_Hitachi.h>
 
@@ -51,28 +49,19 @@ uint64_t chipid;
 int64_t btnChkMs = 0;
 
 const uint16_t lowestBatVol = 3450;	//protect battery voltage
-//static std::map<uint32_t, std::pair<uint32_t, const unsigned char *>> batVolIconMap = 
-//{
-//	//<index, <voltage, icon>>
-//	{6, {4050, bat6_icon8x8}},
-//	{5, {3950, bat5_icon8x8}},
-//	{4, {3880, bat4_icon8x8}},
-//	{3, {3760, bat3_icon8x8}},
-//	{2, {3700, bat2_icon8x8}},
-//	{1, {3620, bat1_icon8x8}},
-//	{0, {0,    bat0_icon8x8}}
-//};
-static std::map<uint32_t, std::pair<uint32_t, const unsigned char *>> batVolIconMap = 
+
+static std::map<uint32_t, uint32_t> batVolIconMap = 
 {
-	//<index, <voltage, icon>>
-	{4, {3980, bat4_icon16x8}},
-	{3, {3850, bat3_icon16x8}},
-	{2, {3780, bat2_icon16x8}},
-	{1, {3620, bat1_icon16x8}},
-	{0, {0,    bat0_icon16x8}}
+	//<voltage, index>
+	{4050, 5},
+	{3980, 4},
+	{3850, 3},
+	{3780, 2},
+	{3620, 1},
+	{0, 0,  }
 };
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, DIS_SCL, DIS_SDA);
 
 // The GPIO an IR detector/demodulator is connected to. Recommended: 14 (D5)
 // Note: GPIO 16 won't work on the ESP8266 as it does not have interrupts.
@@ -166,7 +155,7 @@ const uint16_t sleepClock = 25;
 
 //RTC_DATA_ATTR uint8_t acMode = 0;
 uint32_t upCount = 0;
-uint16_t oledColor = SSD1306_WHITE;
+uint16_t oledColor = 0;
 
 void handleModeInt();
 void handleOkInt();
@@ -195,10 +184,10 @@ String GetDeviceInfoString();
 
 uint16_t GetOledColor()
 {
-	uint16_t color = SSD1306_WHITE;
+	uint16_t color = 0;
 	if (upCount % 10 >= 5)
 	{
-		color = SSD1306_BLACK;
+		color = 1;
 	}
 	return color;
 }
@@ -489,27 +478,16 @@ void setup()
 		ac.setFan(kHitachiAc1FanLow);
 		AcBackup();
 	}
+	u8g2.begin();
+	u8g2.clearBuffer();					// clear the internal memory
+	u8g2.setFont(u8g2_font_ncenB12_tr);	// choose a suitable font
+	u8g2.drawStr(18, 20, "AC Remote");	// write something to the internal memory
+	u8g2.sendBuffer();					// transfer internal memory to the display
 
-	Wire.setPins(DIS_SDA, DIS_SCL);
-	if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
-	{
-		Serial.println(F("SSD1306 allocation failed"));
-		//for(;;); // Don't proceed, loop forever
-	}
-	oledColor = GetOledColor();
-	display.invertDisplay((oledColor == SSD1306_BLACK) ? true : false);
-/*
-	//the adafruit logo
-	display.display();
-	delay(100);
-*/
-	display.clearDisplay();
-	// text display tests
-	display.setTextSize(2);
-	display.setTextColor(SSD1306_WHITE);
-	display.setCursor(14, 7);
-	display.println("AC Remote");
-	display.display();
+	u8x8_cad_StartTransfer(u8g2.getU8x8());
+	u8x8_cad_SendCmd( u8g2.getU8x8(), upCount % 10 >= 5 ? 0xA6 : 0xA7);
+	//u8x8_cad_SendArg( u8g2.getU8x8(), 0x10);
+	u8x8_cad_EndTransfer(u8g2.getU8x8());
 
 	if (SW_ACTIVE)
 	{
@@ -602,9 +580,9 @@ void setup()
 	digitalWrite(LED, 0);
 }
 
-const unsigned char * GetBatteryIcon()
+
+uint8_t GetBatteryIndex()
 {
-	const unsigned char * pIcon = batVolIconMap[0].second;
 	int64_t curSec = millis() / 1000;
 	uint8_t index = 0;
 	static uint8_t chargeStep;
@@ -612,11 +590,9 @@ const unsigned char * GetBatteryIcon()
 
 	for (auto it = batVolIconMap.rbegin(); it != batVolIconMap.rend(); it++)
 	{
-		auto pair = it->second;
-		if (batteryVol >= pair.first)
+		if (batteryVol >= it->first)
 		{
-			index = it->first;
-			pIcon = pair.second;
+			index = it->second;
 			break;
 		}
 	}
@@ -635,75 +611,65 @@ const unsigned char * GetBatteryIcon()
 				chargeStep = index;
 			}
 			index = chargeStep;
-			pIcon = batVolIconMap[index].second;
 		}
 	}
 
-	return pIcon;
+	return index;
 }
+
 
 void printOLED()
 {
-	display.clearDisplay();
+	u8g2.clearBuffer();
+	u8g2.setFont(u8g2_font_ncenB08_tr);
 
 	//MODE
-	display.setTextSize(1);
-	display.setCursor(1, 4);
-	display.printf("Mode:%s", AcModeString(ac.getMode()).c_str());
-
-	//TEMPERATURE
-	display.setTextSize(2);
-	display.setCursor(60, 16);
-	display.printf("%dC", ac.getTemp());
-
-	display.setTextSize(1);
+	u8g2.setCursor(1, 9);
+	u8g2.printf("Mode: %s", AcModeString(ac.getMode()).c_str());
 
 	//FAN SPEED
-	display.setCursor(1, 23);
-	display.printf("Fan:%s", AcFanString(ac.getFan()).c_str());
-	//display.drawBitmap(60, 16, GetFanIcon(), 16, 8, SSD1306_WHITE);
+	u8g2.setCursor(1, 30);
+	u8g2.printf("Fan: %s", AcFanString(ac.getFan()).c_str());
 
-	display.setTextSize(1);
-
-	uint8_t iconPlace = 111;
-	const uint8_t iconDis = 18;
+	uint8_t iconPlace = 95;
+	const uint8_t iconDis = 12;
 
 	//battery icon
 	{
-	#if 0
-		display.setCursor(96, 12);
-		display.printf("%0.2fV", batteryVol / 1000.0);
-	#endif
-		display.drawBitmap(iconPlace, 1, GetBatteryIcon(), 16, 8, SSD1306_WHITE);
-		iconPlace -= iconDis;
+		u8g2.setFont(u8g2_font_battery19_tn);
+		u8g2.setFontDirection(1);
+		u8g2.drawGlyph(107, 1, 0x0030 + GetBatteryIndex());
+		u8g2.setFontDirection(0);
 	}
 	//usb icon
 	if (USB_ACTIVE)
 	{
-		//display.drawBitmap(120, 1, bat5_icon8x8, 8, 8, SSD1306_WHITE);	//charge icon
-
-		//display.setCursor(106, 1);
-		//display.print("USB");
-		display.drawBitmap(iconPlace, 1, usb_icon16x8, 16, 8, SSD1306_WHITE);
+		u8g2.setFont(u8g2_font_siji_t_6x10);
+		u8g2.drawGlyph(iconPlace, 9, 0xe00c); // USB
 		iconPlace -= iconDis;
 	}
 	//wifi icon
 	if (WiFi.isConnected())
 	{
-		//display.setCursor(72, 12);
-		//display.print("WIFI");
-		display.drawBitmap(iconPlace, 1, wifi_icon16x8, 16, 8, SSD1306_WHITE);
+		u8g2.setFont(u8g2_font_siji_t_6x10);
+		u8g2.drawGlyph(iconPlace, 9, 0xe21a); // WIFI
 		iconPlace -= iconDis;
 	}
 	//sleep countdown
 	if (idleClock > 0)
 	{
-		display.setCursor(116, 24);
-		display.printf("%02d", sleepClock - idleClock);
+		u8g2.setCursor(116, 30);
+		u8g2.setFont(u8g2_font_ncenB08_tr);
+		u8g2.printf("%02d", sleepClock - idleClock);
 	}
-	
-	//delay(10);
-	display.display(); // actually display all of the above
+	//TEMPERATURE
+	u8g2.setFont(u8g2_font_ncenB10_tr);
+	u8g2.setCursor(64, 30);
+	u8g2.printf("%d", ac.getTemp());
+	u8g2.setFont(u8g2_font_cu12_t_symbols);
+	u8g2.drawGlyph(80, 30, 0x2103);	// ℃
+
+	u8g2.sendBuffer();
 }
 
 void printState()
@@ -1062,12 +1028,11 @@ void loop()
 	}
 	else if (idleClock >= sleepClock)
 	{
-		display.clearDisplay();
-		// text display tests
-		display.setTextSize(1);
-		display.setCursor(28, 12);
-		display.println("Going to sleep");
-		display.display();
+		u8g2.clearDisplay();
+		u8g2.setFont(u8g2_font_ncenB08_tr);
+		u8g2.setCursor(28, 18);
+		u8g2.println("Going to sleep");
+		u8g2.sendBuffer();
 		AcBackup();
 
 		Serial.println("Going to sleep now");
@@ -1077,7 +1042,7 @@ void loop()
 		esp_light_sleep_start();
 
 		//power off oled
-		display.ssd1306_command(SSD1306_DISPLAYOFF);
+		u8g2.noDisplay();
 
 		//wait until button release
 		while (digitalRead(KEY_OK) == 0)
@@ -1217,7 +1182,7 @@ void ButtonActionOk()
 
 	{
 		//power on oled
-		display.ssd1306_command(SSD1306_DISPLAYON);
+		u8g2.display();
 	}
 }
 void ButtonActionLongOk()
@@ -1230,7 +1195,7 @@ void ButtonActionLongOk()
 	else
 	{
 		//power off oled
-		display.ssd1306_command(SSD1306_DISPLAYOFF);
+		u8g2.noDisplay();
 	}
 }
 void ButtonActionMode()
@@ -1316,27 +1281,27 @@ void OTAProgress(uint16_t progress)
 {
 	if (progress == 1)
 	{
-		display.ssd1306_command(SSD1306_DISPLAYON);
+		u8g2.display();
 	}
 	if (progress % 5 != 0)
 	{
 		return;
 	}
 	
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setCursor(32, 1);
-	display.println("OTA updating");
-	display.setCursor(32, 24);
-	display.printf("Progress: %d%%", progress);
-	display.display();
+	u8g2.clearBuffer();
+	u8g2.setFont(u8g2_font_ncenB08_tr);
+	u8g2.setCursor(32, 9);
+	u8g2.println("OTA updating");
+	u8g2.setCursor(32, 30);
+	u8g2.printf("Progress: %d%%", progress);
+	u8g2.sendBuffer();
 }
 
 //go into deep sleep only can wake up by charge
 void LowBatteryAction()
 {
 	//power off oled
-	display.ssd1306_command(SSD1306_DISPLAYOFF);
+	u8g2.noDisplay();
 
 	esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
 	rtc_gpio_isolate(GPIO_NUM_2);	//pull down inside and pull up as I2C_SCL outside, avoid power consume
