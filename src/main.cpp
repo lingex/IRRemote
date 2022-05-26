@@ -430,7 +430,10 @@ void setup()
 	Serial.begin(115200);
 	delay(10);
 
-	print_wakeup_reason();
+	if (SW_ACTIVE)
+	{
+		print_wakeup_reason();
+	}
 
 	/*After waking up from sleep, the IO pad used for wakeup will be configured as RTC IO. 
 	Therefore, before using this pad as digital GPIO, 
@@ -467,7 +470,7 @@ void setup()
 		ac.setFan(pObj["fan"].as<int>());
 		ac.setTemp(pObj["temp"].as<int>());
 
-		upCount = doc.getOrAddMember("upCount").as<uint32_t>();
+		upCount = doc.getMember("upCount").as<uint32_t>();
 		Serial.printf("device upCount: %d\n", upCount);
 		file.close();
 	}
@@ -479,19 +482,19 @@ void setup()
 		AcBackup();
 	}
 	u8g2.begin();
-	u8g2.clearBuffer();					// clear the internal memory
 	u8g2.setFont(u8g2_font_ncenB12_tr);	// choose a suitable font
 	u8g2.drawStr(18, 20, "AC Remote");	// write something to the internal memory
-	u8g2.sendBuffer();					// transfer internal memory to the display
 
+	//set color
 	u8x8_cad_StartTransfer(u8g2.getU8x8());
-	u8x8_cad_SendCmd( u8g2.getU8x8(), upCount % 10 >= 5 ? 0xA6 : 0xA7);
-	//u8x8_cad_SendArg( u8g2.getU8x8(), 0x10);
+	u8x8_cad_SendCmd(u8g2.getU8x8(), upCount % 10 >= 5 ? OLED_CMD_COLOR_BLACK : OLED_CMD_COLOR_WHITE);
 	u8x8_cad_EndTransfer(u8g2.getU8x8());
+
+	u8g2.sendBuffer();	// transfer internal memory to the display
 
 	if (SW_ACTIVE)
 	{
-		if(SPIFFS.exists(configFile))
+		if(!ConnectWiFi(ssid, password) && SPIFFS.exists(configFile))
 		{
 			File file = SPIFFS.open(configFile, "r");
 			String data = file.readString();
@@ -514,36 +517,32 @@ void setup()
 		}
 		else
 		{
-			Serial.println("File not found:" + configFile);
+			Serial.println("Config file not found:" + configFile);
 		}
-
 		if(!WiFi.isConnected())
 		{
-			if(!ConnectWiFi(ssid, password))
+			WiFiManager wifiManager;
+
+			wifiManager.resetSettings();
+			//in seconds
+			wifiManager.setTimeout(300);
+			
+			//set custom ip for portal
+			//wifiManager.setAPStaticIPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
+
+			//fetches ssid and pass from eeprom and tries to connect
+			//if it does not connect it starts an access point with the specified name
+			//here  "AutoConnectAP"
+			//and goes into a blocking loop awaiting configuration
+			if (wifiManager.autoConnect(apssid, appassword))
 			{
-				WiFiManager wifiManager;
-
-				wifiManager.resetSettings();
-				//in seconds
-				wifiManager.setTimeout(300);
-				
-				//set custom ip for portal
-				//wifiManager.setAPStaticIPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
-
-				//fetches ssid and pass from eeprom and tries to connect
-				//if it does not connect it starts an access point with the specified name
-				//here  "AutoConnectAP"
-				//and goes into a blocking loop awaiting configuration
-				if (wifiManager.autoConnect(apssid, appassword))
-				{
-					Serial.println("failed to connect and hit timeout");
-					delay(3000);
-					//reset and try again, or maybe put it to deep sleep
-					ESP.restart();
-				}
-				//or use this for auto generated name ESP + ChipID
-				//wifiManager.autoConnect();
+				Serial.println("failed to connect and hit timeout");
+				delay(3000);
+				//reset and try again, or maybe put it to deep sleep
+				ESP.restart();
 			}
+			//or use this for auto generated name ESP + ChipID
+			//wifiManager.autoConnect();
 		}
 
 		server.begin();
