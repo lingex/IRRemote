@@ -1,0 +1,117 @@
+<!DOCTYPE HTML><html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AC Controller</title>
+  <style>
+    html {font-family: Arial; display: inline-block; text-align: center;}
+    h2 {font-size: 2.4rem;}
+    p {font-size: 2.2rem;}
+    body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
+    .switch {position: relative; display: inline-block; width: 120px; height: 68px} 
+    .switch input {display: none}
+    .slider {position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 34px}
+    .slider:before {position: absolute; content: ""; height: 52px; width: 52px; left: 8px; bottom: 8px; background-color: #fff; -webkit-transition: .4s; transition: .4s; border-radius: 68px}
+    input:checked+.slider {background-color: #2196F3}
+    input:checked+.slider:before {-webkit-transform: translateX(52px); -ms-transform: translateX(52px); transform: translateX(52px)}
+	.sliderTemp { width: 300px; }
+	.button { width:110px; height:55px; padding: 15px 25px; font-size: 16px; cursor: pointer; text-align: center; text-decoration: none; outline: none; color: #fff; background-color: #2196F3; border: none; border-radius: 8px; margin: 4px 2px; }
+	.button:hover { background-color: #0354ce; }
+	.button:active { background-color: #0b16b3; }
+  </style>
+</head>
+<body>
+  <h2>Hitachi AC</h2>
+  %POWERPLACEHOLDER%
+  <center>
+  <fieldset style='width:300px; border-radius: 8px' id="fieldsetACMode" onchange="ac()">
+  <legend align='center'>Mode</legend>
+  %ACMODEPLACEHOLDER%
+  </fieldset>
+  <br><br>
+
+  <fieldset style='width:300px; border-radius: 8px' id="fieldsetACFan" onchange="ac()">
+  <legend align='center'>Fan</legend>
+  %FANMODEPLACEHOLDER%
+  </fieldset>
+
+  <br><br>
+  Temp: <span id="acTemp"></span>
+  <br>
+  %TEMPPLACEHOLDER%
+
+  <p>
+  <button type="button" class="button" onclick="swingAction('1')">Swing X</button>
+  <button type="button" class="button" onclick="swingAction('2')">Swing Y</button>
+  <br>
+  </p>
+  </center>
+
+  <div style="position: relative;">
+    <div style="position: absolute; bottom: -300px; background-color: rgb(207, 237, 248)">
+    %DEVICEINFO%
+    </div>
+  </div>
+
+<script>
+var tempSlider = document.getElementById("acTempSlider");
+var acT = document.getElementById("acTemp"); acT.innerHTML = tempSlider.value;
+tempSlider.oninput = function() {
+	tempSlider.value = this.value;
+	acT.innerHTML = this.value; 
+}
+
+console.log("%DEVICEINFO%");
+
+function toggleCheckbox(element) {
+  var xhr = new XMLHttpRequest();
+  if(element.checked){
+  // xhr.open("GET", "/update?state=1", true); xhr.send();
+  btnAction(1);
+  }
+  else {
+    //xhr.open("GET", "/update?state=0", true); xhr.send();
+	btnAction(0);
+  }
+}
+function ac() {
+		var modeSelector = document.querySelector('input[name="acMODE"]:checked');
+		var fanSelector = document.querySelector('input[name="fanSpeed"]:checked');
+		var modeVal = modeSelector ? modeSelector.value : 1;
+		var fanVal = modeSelector ? fanSelector.value : 1;
+		var tempVal = tempSlider ? tempSlider.value : 1;
+		console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal);
+		var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;
+
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", "/ac?value=" + val + "&", true);
+		xhr.send();
+	}
+function swingAction(btnVal) {
+	var modeSelector = document.querySelector('input[name="acMODE"]:checked');
+	var fanSelector = document.querySelector('input[name="fanSpeed"]:checked');
+	var modeVal = modeSelector ? modeSelector.value : 1;
+	var fanVal = modeSelector ? fanSelector.value : 1;
+	var tempVal = tempSlider ? tempSlider.value : 1;
+	console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', swing:' + btnVal);
+	var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;
+	//$.get("/?value=" + val + "&swing=" + btnVal + "&"); {Connection: close};
+	var xhr = new XMLHttpRequest();
+	xhr.open("GET", "/ac?value=" + val + "&swing=" + btnVal + "&", true);
+	xhr.send();
+}
+function btnAction(btnVal) {
+	var modeSelector = document.querySelector('input[name="acMODE"]:checked');
+	var fanSelector = document.querySelector('input[name="fanSpeed"]:checked');
+	var modeVal = modeSelector ? modeSelector.value : 1;
+	var fanVal = modeSelector ? fanSelector.value : 1;
+	var tempVal = tempSlider ? tempSlider.value : 1;
+	console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', switch:' + btnVal);
+	var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;
+	//$.get("/?value=" + val + "&switch=" + btnVal + "&"); {Connection: close};
+	var xhr = new XMLHttpRequest();
+	xhr.open("GET", "/ac?value=" + val + "&switch=" + btnVal + "&", true);
+	xhr.send();
+}
+</script>
+</body>
+</html>
