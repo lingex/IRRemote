@@ -3,7 +3,7 @@ ESP32空调遥控器
 
 ![image](./V1.2/Doc/001.jpg)
 
-![image](./V1.2/Doc/001.jpg)
+![image](./V1.2/Doc/002.jpg)
 
 ![image](./V1.2/Doc/003.jpg)
 
