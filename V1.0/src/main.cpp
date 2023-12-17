@@ -22,6 +22,7 @@
 #include "ota.h"
 #include "rtc_io.h"
 #include "web.h"
+#include "config.h"	//please define your wifi ssid and passwd here, avoid to share it on the Internet
 
 #include <U8g2lib.h>
 
@@ -41,8 +42,8 @@ using namespace std;
 
 String configFile = "/config.json";
 const char* host = "esp32";
-const char* ssid = "your ssid";
-const char* password = "your passwd";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 const char* apssid      = "esp32";
 const char* appassword = "pwd4admin";
 uint64_t chipid;

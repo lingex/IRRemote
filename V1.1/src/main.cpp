@@ -23,6 +23,7 @@
 #include "ota.h"
 #include "rtc_io.h"
 #include "web.h"
+#include "config.h"	//please define your wifi ssid and passwd here, avoid to share it on the Internet
 
 #include <U8g2lib.h>
 
@@ -46,8 +47,8 @@ using namespace std;
 
 String configFile = "/config.json";
 const char* host = "esp32";
-const char* ssid = "your ssid";
-const char* password = "your passwd";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 const char* apssid      = "esp32";
 const char* appassword = "pwd4admin";
 uint64_t chipid;
@@ -79,15 +80,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "time.nist.gov", 8 * 3600, 300 * 1000);
 WiFiServer server(80);
 
-std::vector<OneButton> buttons = {
-	OneButton(KEY_BOOT, true, false),
-	OneButton(KEY_GO, false, false),
-	OneButton(KEY_UP, false, false),
-	OneButton(KEY_DOWN, false, false),
-	OneButton(KEY_LEFT, false, false),
-	OneButton(KEY_RIGHT, false, false),
-	OneButton(KEY_OK, false, false)
-};
+std::vector<OneButton> buttons;
 
 uint32_t batteryVol = 0;	//battary voltage in mV
 uint16_t idleClock = 0;
@@ -95,13 +88,6 @@ const uint16_t sleepClock = 15;
 
 //RTC_DATA_ATTR uint8_t acMode = 0;
 uint32_t upCount = 0;
-
-void handleModeInt();
-void handleOkInt();
-void handleUpInt();
-void handleDownInt();
-void handleLeftInt();
-void handleRightInt();
 
 void ButtonEventsAttach();
 void printState();
@@ -930,32 +916,52 @@ void ButtonEventsAttach()
 	OneButton(KEY_RIGHT),
 	OneButton(KEY_OK)
 */
+
 	// mode
-	buttons[0].attachClick([] {
+	auto btn1 = OneButton(KEY_BOOT, true, false);
+	btn1.attachClick([] {
 		ButtonActionMode();
 	});
-	buttons[0].setClickTicks(10);
-	buttons[1].attachClick([]{  //GO
+	buttons.push_back(btn1);
+	
+	auto btn2 = OneButton(KEY_GO, false, false);
+	btn2.attachClick([] {
 		ButtonActionGo();
 	});
-	buttons[2].attachClick([]{  //UP
+	buttons.push_back(btn2);
+
+	auto btn3 = OneButton(KEY_UP, false, false);
+	btn3.attachClick([] {
 		ButtonActionUp();
 	});
-	buttons[3].attachClick([]{  //DOWN
+	buttons.push_back(btn3);
+
+	auto btn4 = OneButton(KEY_DOWN, false, false);
+	btn4.attachClick([] {
 		ButtonActionDown();
-	});
-	buttons[4].attachClick([]{  //LEFT
+	});	
+	buttons.push_back(btn4);
+
+	auto btn5 = OneButton(KEY_LEFT, false, false);
+	btn5.attachClick([] {
 		ButtonActionLeft();
 	});
-	buttons[5].attachClick([]{  //RIGHT
+	buttons.push_back(btn5);
+
+	auto btn6 = OneButton(KEY_RIGHT, false, false);
+	btn6.attachClick([] {
 		ButtonActionRight();
 	});
-	buttons[6].attachClick([]{  //OK
+	buttons.push_back(btn6);
+
+	auto btn7 = OneButton(KEY_OK, false, false);
+	btn7.attachClick([] {
 		ButtonActionOk();
 	});
-	buttons[6].attachLongPressStart([]{  //OK HOLD
+	btn7.attachLongPressStart([] {
 		ButtonActionLongOk();
 	});
+	buttons.push_back(btn7);
 }
 
 void OTAProgress(uint16_t progress)

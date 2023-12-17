@@ -23,6 +23,7 @@
 #include "ota.h"
 #include "rtc_io.h"
 #include "web.h"
+#include "config.h"	//please define your wifi ssid and passwd here, avoid to share it on the Internet
 
 #include <U8g2lib.h>
 
@@ -47,15 +48,15 @@ using namespace std;
 #define IR_IN_PWR_OFF (digitalWrite(IR_IN_EN, 0))
 
 
-String configFile = "/config.json";
 const char* host = "esp32";
-const char* ssid = "your ssid";
-const char* password = "your passwd";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 const char* apssid      = "esp32";
 const char* appassword = "pwd4admin";
 uint64_t chipid;
 
 int64_t btnChkMs = 0;
+int connLostCnt = 0;
 
 const uint16_t lowestBatVol = 3450;	//protect battery voltage
 
@@ -126,33 +127,6 @@ void AcCmdSend();
 void AcSwingVSwitch();
 void AcPowerToggle();
 String GetDeviceInfoString();
-
-void AcBackup()
-{
-	Serial.println("AC state backup.");
-
-	String data = "";
-	StaticJsonDocument<1024> doc;
-
-	if(SPIFFS.exists(configFile))
-	{
-		File file = SPIFFS.open(configFile, FILE_READ);
-		String data = file.readString();
-		// Deserialize the JSON document
-  		deserializeJson(doc, file);
-
-		doc["ac.mode"] = ac.getMode();
-		doc["ac.fan"] = ac.getFan();
-		doc["ac.temp"] = ac.getTemp();
-
-		doc["upCount"] = ++upCount;
-		file.close();
-	}
-
-	File fileW = SPIFFS.open(configFile, FILE_WRITE);
-	serializeJson(doc, fileW);
-	fileW.close();
-}
 
 String AcModeString(uint8_t mode)
 {
@@ -401,49 +375,9 @@ void setup()
 	ac.setSwingH(false);
 	ac.setSwingV(false);
 
-	SPIFFS.begin();
-	if(SPIFFS.exists(configFile))
-	{
-		File file = SPIFFS.open(configFile, FILE_READ);
-		StaticJsonDocument<1024> doc;
-
-		// Deserialize the JSON document
-		DeserializationError error = deserializeJson(doc, file);
-		if (error)
-		{
-			Serial.println(F("Failed to read file, using default configuration"));
-		}
-		ac.setMode(doc["ac.mode"] | kHitachiAc1Cool);
-		ac.setTemp(doc["ac.temp"] | kHitachiAc1TempAuto);
-		ac.setFan(doc["ac.fan"] | kHitachiAc1FanLow);
-		upCount = doc["upCount"] | 0;
-		Serial.printf("device upCount: %d\n", upCount);
-
-		// Close the file (Curiously, File's destructor doesn't close the file)
-		file.close();
-/*
-		File file = SPIFFS.open(configFile, FILE_READ);
-		String data = file.readString();
-		DynamicJsonDocument doc(1024);
-		deserializeJson(doc, data);
-		JsonObject pObj = doc.getMember("ac").as<JsonObject>();
-
-		ac.setMode(pObj["mode"].as<int>());
-		ac.setFan(pObj["fan"].as<int>());
-		ac.setTemp(pObj["temp"].as<int>());
-
-		upCount = doc.getMember("upCount").as<uint32_t>();
-		Serial.printf("device upCount: %d\n", upCount);
-		file.close();
-*/
-	}
-	else
-	{
-		ac.setMode(kHitachiAc1Cool);
-		ac.setTemp(kHitachiAc1TempAuto);
-		ac.setFan(kHitachiAc1FanLow);
-		AcBackup();
-	}
+	ac.setMode(kHitachiAc1Cool);
+	ac.setTemp(kHitachiAc1TempAuto);
+	ac.setFan(kHitachiAc1FanLow);
 
 	u8g2.begin();
 	u8g2.setFont(u8g2_font_ncenB12_tr);	// choose a suitable font
@@ -456,34 +390,7 @@ void setup()
 	if (SW_ACTIVE)
 	{
 		WiFi.setHostname(HOST_NAME);
-		if(!ConnectWiFi(ssid, password) && SPIFFS.exists(configFile))
-		{
-			File file = SPIFFS.open(configFile, "r");
-			String data = file.readString();
-			Serial.print("loading config:");
-			Serial.println(data);
-
-			//DynamicJsonDocument doc(1024);
-			StaticJsonDocument<1024> doc;
-			deserializeJson(doc, data.c_str());
-			int size = doc["wifi"].size();
-			Serial.print("wifi configs:");
-			Serial.println(size);
-			for(int i=0; i<size; i++)
-			{
-				const char* ssid = doc["wifi"][i]["ssid"];
-				const char* passwd = doc["wifi"][i]["pwd"];
-				if(ConnectWiFi(ssid, passwd))
-				{
-					break;
-				}
-			}
-			file.close();
-		}
-		else
-		{
-			Serial.println("Config file not found:" + configFile);
-		}
+		ConnectWiFi(ssid, password);
 		if(!WiFi.isConnected())
 		{
 			WiFiManager wifiManager;
@@ -738,7 +645,13 @@ void loop()
 		WebHandle();
 		if (idleClock != 0 && !WiFi.isConnected())
 		{
+			u8g2.clearDisplay();
+			u8g2.setFont(u8g2_font_ncenB08_tr);
+			u8g2.setCursor(28, 18);
+			u8g2.println("Going to restart");
+			u8g2.sendBuffer();
 			Serial.println("\nGoing to restart by SW active!");
+			delay(100);
 			ESP.restart();
 		}
 		//server.handleClient();
@@ -746,10 +659,16 @@ void loop()
 		timeClient.update();
 		if (!WiFi.isConnected())
 		{
-			DIS_BL_ON;
-			WiFi.reconnect();
-			delay(2000);
-			DIS_BL_OFF;
+			if (connLostCnt++ >= 180)
+			{
+				Serial.println("\nWifi connect lost");
+				WiFi.reconnect();
+				connLostCnt = 0;
+			}
+		}
+		else
+		{
+			connLostCnt = 0;
 		}
 		if (blClock == cfgSleepSec)
 		{
@@ -814,7 +733,6 @@ void AcCmdSend()
 	digitalWrite(LED, 0);
 	//printState();
 	blClock = 0;
-	AcBackup();
 }
 
 void AcPowerToggle()
