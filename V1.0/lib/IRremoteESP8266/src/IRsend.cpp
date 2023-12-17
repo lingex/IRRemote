@@ -571,6 +571,7 @@ uint16_t IRsend::minRepeats(const decode_type_t protocol) {
     case MULTIBRACKETS:
     case SHERWOOD:
     case TOSHIBA_AC:
+    case TOTO:
       return kSingleRepeat;
     // Special
     case AIRWELL:
@@ -602,7 +603,10 @@ uint16_t IRsend::minRepeats(const decode_type_t protocol) {
 uint16_t IRsend::defaultBits(const decode_type_t protocol) {
   switch (protocol) {
     case MULTIBRACKETS:
+    case GORENJE:
       return 8;
+    case WOWWEE:
+      return 11;
     case RC5:
     case SYMPHONY:
       return 12;
@@ -633,6 +637,7 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
     case MIDEA24:
     case NIKAI:
     case RCMM:
+    case TOTO:
     case TRANSCOLD:
       return 24;
     case LG:
@@ -668,6 +673,8 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
     case MIDEA:
     case PANASONIC:
       return 48;
+    case CLIMABUTLER:
+      return kClimaButlerBits;  // 52
     case AIRTON:
     case ECOCLIM:
     case MAGIQUEST:
@@ -682,8 +689,14 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
       return 64;
     case ARGO:
       return kArgoBits;
+    case BOSCH144:
+      return kBosch144Bits;
     case CORONA_AC:
       return kCoronaAcBits;
+    case CARRIER_AC84:
+      return kCarrierAc84Bits;
+    case CARRIER_AC128:
+      return kCarrierAc128Bits;
     case DAIKIN:
       return kDaikinBits;
     case DAIKIN128:
@@ -696,8 +709,12 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
       return kDaikin176Bits;
     case DAIKIN2:
       return kDaikin2Bits;
+    case DAIKIN200:
+      return kDaikin200Bits;
     case DAIKIN216:
       return kDaikin216Bits;
+    case DAIKIN312:
+      return kDaikin312Bits;
     case DAIKIN64:
       return kDaikin64Bits;
     case ELECTRA_AC:
@@ -708,6 +725,8 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
       return kHaierACBits;
     case HAIER_AC_YRW02:
       return kHaierACYRW02Bits;
+    case HAIER_AC160:
+      return kHaierAC160Bits;
     case HAIER_AC176:
       return kHaierAC176Bits;
     case HITACHI_AC:
@@ -756,8 +775,12 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
       return kSanyoAcBits;
     case SANYO_AC88:
       return kSanyoAc88Bits;
+    case SANYO_AC152:
+      return kSanyoAc152Bits;
     case SHARP_AC:
       return kSharpAcBits;
+    case TCL96AC:
+      return kTcl96AcBits;
     case TCL112AC:
       return kTcl112AcBits;
     case TEKNOPOINT:
@@ -773,6 +796,8 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
       return kWhirlpoolAcBits;
     case XMP:
       return kXmpBits;
+    case YORK:
+      return kYorkBits;
     // No default amount of bits.
     case FUJITSU_AC:
     case MWM:
@@ -833,6 +858,11 @@ bool IRsend::send(const decode_type_t type, const uint64_t data,
       sendCarrierAC64(data, nbits, min_repeat);
       break;
 #endif  // SEND_CARRIER_AC64
+#if SEND_CLIMABUTLER
+    case CLIMABUTLER:
+      sendClimaButler(data, nbits, min_repeat);
+      break;
+#endif  // SEND_CLIMABUTLER
 #if SEND_COOLIX
     case COOLIX:
       sendCOOLIX(data, nbits, min_repeat);
@@ -891,6 +921,11 @@ bool IRsend::send(const decode_type_t type, const uint64_t data,
 #if SEND_GOODWEATHER
     case GOODWEATHER:
       sendGoodweather(data, nbits, min_repeat);
+      break;
+#endif
+#if SEND_GORENJE
+    case GORENJE:
+      sendGorenje(data, nbits, min_repeat);
       break;
 #endif
 #if SEND_GREE
@@ -1066,6 +1101,11 @@ bool IRsend::send(const decode_type_t type, const uint64_t data,
       sendTeco(data, nbits, min_repeat);
       break;
 #endif  // SEND_TECO
+#if SEND_TOTO
+    case TOTO:
+      sendToto(data, nbits, min_repeat);
+      break;
+#endif  // SEND_TOTO
 #if SEND_TRANSCOLD
     case TRANSCOLD:
       sendTranscold(data, nbits, min_repeat);
@@ -1086,6 +1126,11 @@ bool IRsend::send(const decode_type_t type, const uint64_t data,
       sendWhynter(data, nbits, min_repeat);
       break;
 #endif
+#if SEND_WOWWEE
+    case WOWWEE:
+      sendWowwee(data, nbits, min_repeat);
+      break;
+#endif  // SEND_WOWWEE
 #if SEND_XMP
     case XMP:
       sendXmp(data, nbits, min_repeat);
@@ -1126,6 +1171,21 @@ bool IRsend::send(const decode_type_t type, const uint8_t *state,
       sendArgo(state, nbytes);
       break;
 #endif  // SEND_ARGO
+#if SEND_BOSCH144
+    case BOSCH144:
+      sendBosch144(state, nbytes);
+      break;
+#endif  // SEND_BOSCH144
+#if SEND_CARRIER_AC84
+    case CARRIER_AC84:
+      sendCarrierAC84(state, nbytes);
+      break;
+#endif  // SEND_CARRIER_AC84
+#if SEND_CARRIER_AC128
+    case CARRIER_AC128:
+      sendCarrierAC128(state, nbytes);
+      break;
+#endif  // SEND_CARRIER_AC128
 #if SEND_CORONA_AC
     case CORONA_AC:
       sendCoronaAc(state, nbytes);
@@ -1161,11 +1221,21 @@ bool IRsend::send(const decode_type_t type, const uint8_t *state,
       sendDaikin2(state, nbytes);
       break;
 #endif  // SEND_DAIKIN2
+#if SEND_DAIKIN200
+    case DAIKIN200:
+      sendDaikin200(state, nbytes);
+      break;
+#endif  // SEND_DAIKIN200
 #if SEND_DAIKIN216
     case DAIKIN216:
       sendDaikin216(state, nbytes);
       break;
 #endif  // SEND_DAIKIN216
+#if SEND_DAIKIN312
+    case DAIKIN312:
+      sendDaikin312(state, nbytes);
+      break;
+#endif  // SEND_DAIKIN312
 #if SEND_ELECTRA_AC
     case ELECTRA_AC:
       sendElectraAC(state, nbytes);
@@ -1191,6 +1261,11 @@ bool IRsend::send(const decode_type_t type, const uint8_t *state,
       sendHaierACYRW02(state, nbytes);
       break;
 #endif  // SEND_HAIER_AC_YRW02
+#if SEND_HAIER_AC160
+    case HAIER_AC160:
+      sendHaierAC160(state, nbytes);
+      break;
+#endif  // SEND_HAIER_AC160
 #if SEND_HAIER_AC176
     case HAIER_AC176:
       sendHaierAC176(state, nbytes);
@@ -1309,11 +1384,21 @@ bool IRsend::send(const decode_type_t type, const uint8_t *state,
       sendSanyoAc88(state, nbytes);
       break;
 #endif  // SEND_SANYO_AC88
+#if SEND_SANYO_AC152
+    case SANYO_AC152:
+      sendSanyoAc152(state, nbytes);
+      break;
+#endif  // SEND_SANYO_AC152
 #if SEND_SHARP_AC
     case SHARP_AC:
       sendSharpAc(state, nbytes);
       break;
 #endif  // SEND_SHARP_AC
+#if SEND_TCL96AC
+    case TCL96AC:
+      sendTcl96Ac(state, nbytes);
+      break;
+#endif  // SEND_TCL96AC
 #if SEND_TCL112AC
     case TCL112AC:
       sendTcl112Ac(state, nbytes);
@@ -1344,6 +1429,11 @@ bool IRsend::send(const decode_type_t type, const uint8_t *state,
       sendWhirlpoolAC(state, nbytes);
       break;
 #endif  // SEND_WHIRLPOOL_AC
+#if SEND_YORK
+    case YORK:
+      sendYork(state, nbytes);
+      break;
+#endif  // SEND_YORK
     default:
       return false;
   }

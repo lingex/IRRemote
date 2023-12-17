@@ -548,6 +548,11 @@ stdAc::state_t IRCoolixAC::toCommon(const stdAc::state_t *prev) const {
   // Back to "normal" stateful messages.
   result.mode = toCommonMode(getMode());
   result.degrees = getTemp();
+  result.sensorTemperature = getSensorTemp();
+  if (result.sensorTemperature == kCoolixSensorTempIgnoreCode) {
+    result.sensorTemperature = kNoTempValue;
+  }
+  result.iFeel = getZoneFollow();
   result.fanspeed = toCommonFanSpeed(getFan());
   return result;
 }
@@ -719,7 +724,7 @@ void IRsend::sendCoolix48(const uint64_t data, const uint16_t nbits,
 }
 #endif  // SEND_COOLIX48
 
-#if DECODE_COOLIX
+#if DECODE_COOLIX48
 /// Decode the supplied Coolix 48-bit A/C message.
 /// Status: BETA / Probably Working.
 /// @param[in,out] results Ptr to the data to decode & where to store the decode
