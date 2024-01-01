@@ -716,6 +716,7 @@ void loop()
 	int64_t curMs = millis();
 	static int64_t lastRefresh = 0;
 	int64_t epochMills = curMs - lastRefresh;
+	static uint32_t lostConnect = 0;
 
 	if (lastRefresh == 0 || epochMills >= 1000)
 	{
@@ -761,14 +762,29 @@ void loop()
 
 	if (SW_ACTIVE)
 	{
-		WebHandle();
+		if (WiFi.isConnected())
+		{
+			lostConnect = 0;
+			WebHandle();
+			//server.handleClient();
+			ArduinoOTA.handle();
+		}
+		else
+		{
+			if (lostConnect++ > 180)
+			{
+				lostConnect = 0;
+				Serial.println("\nWiFi retry...");
+				WiFi.reconnect();
+			}
+		}
+		
 		if (idleClock != 0 && !WiFi.isConnected())
 		{
 			Serial.println("\nGoing to restart by SW active!");
 			ESP.restart();
 		}
-		//server.handleClient();
-		ArduinoOTA.handle();
+
 		// Check if the IR code has been received.
 		if (irrecv.decode(&results))
 		{
