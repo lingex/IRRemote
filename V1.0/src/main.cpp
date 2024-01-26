@@ -748,6 +748,24 @@ void loop()
 					u8g2.noDisplay();
 				}
 			}
+
+			if (WiFi.isConnected())
+			{
+				lostConnect = 0;
+			}
+			else
+			{
+				if (lostConnect++ > 180)
+				{
+					Serial.println("\nWiFi retry...");
+					WiFi.reconnect();
+					if (lostConnect >= 600)
+					{
+						ESP.restart();
+					}
+					
+				}
+			}
 		}
 		printOLED();
 	}
@@ -764,21 +782,10 @@ void loop()
 	{
 		if (WiFi.isConnected())
 		{
-			lostConnect = 0;
 			WebHandle();
 			//server.handleClient();
 			ArduinoOTA.handle();
 		}
-		else
-		{
-			if (lostConnect++ > 180)
-			{
-				lostConnect = 0;
-				Serial.println("\nWiFi retry...");
-				WiFi.reconnect();
-			}
-		}
-		
 		if (idleClock != 0 && !WiFi.isConnected())
 		{
 			Serial.println("\nGoing to restart by SW active!");
