@@ -139,9 +139,7 @@ void WebHandle()
 						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
 						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
 						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal);");
-						client.println("var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;");
-						//client.println("$.get(\"/?mode=\" + modeVal + \"&\" + \"fan=\" + fanVal + \"&\" + \"temp=\" + tempVal + \"&\"); {Connection: close};}</script>");
-						client.println("$.get(\"/?value=\" + val + \"&\"); {Connection: close};");
+						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&\"); {Connection: close};");
 						client.println("}");
 						//swing action
 						client.println("function swingAction(btnVal) {");
@@ -151,8 +149,7 @@ void WebHandle()
 						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
 						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
 						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', swing:' + btnVal);");
-						client.println("var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;");
-						client.println("$.get(\"/?value=\" + val + \"&swing=\" + btnVal + \"&\"); {Connection: close};");
+						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&swing=\" + btnVal + \"&\"); {Connection: close};");
 						client.println("}");
 						//power switch action
 						client.println("function btnAction(btnVal) {");
@@ -162,8 +159,7 @@ void WebHandle()
 						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
 						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
 						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', switch:' + btnVal);");
-						client.println("var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;");
-						client.println("$.get(\"/?value=\" + val + \"&switch=\" + btnVal + \"&\"); {Connection: close};");
+						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&switch=\" + btnVal + \"&\"); {Connection: close};");
 						client.println("}");
 						client.println("console.log(\"" + GetDeviceInfoString() + "\")");
 						client.println("</script></body></html>");
@@ -171,57 +167,53 @@ void WebHandle()
 						//GET /?value=140125&switch=1& HTTP/1.1
 						bool valueOk = false;
 						displayCnt = 20;
-						if(header.indexOf("GET /?value=") >= 0)
-						{
-							int pos1 = header.indexOf('=');
-							int pos2 = header.indexOf('&');
-							int val = header.substring(pos1 + 1, pos2).toInt();
-							acMode = val / 10000;
-							acFan = val % 10000 / 100;
-							acTemp = val % 10000 % 100;
-							if (acTemp < 16 || acTemp > 35)
-							{
-								acTemp = 25;
+						// Check for each parameter separately
+						if(header.indexOf("GET /?mode=") >= 0 && header.indexOf("&fan=") >= 0 && header.indexOf("&temp=") >= 0) {
+							int mode_start = header.indexOf("mode=") + 5;
+							int mode_end = header.indexOf('&', mode_start);
+							int mode = header.substring(mode_start, mode_end).toInt();
+							
+							int fan_start = header.indexOf("fan=") + 4;
+							int fan_end = header.indexOf('&', fan_start);
+							int fan = header.substring(fan_start, fan_end).toInt();
+						
+							int temp_start = header.indexOf("temp=") + 5;
+							int temp_end = (header.indexOf('&', temp_start) != -1) ? header.indexOf('&', temp_start) : header.indexOf(' ', temp_start);
+							int temp = header.substring(temp_start, temp_end).toInt();
+						
+							if (temp < 16 || temp > 35) {
+								temp = 25;
 							}
-							ac.setMode(acMode);
-							ac.setFan(acFan);
-							ac.setTemp(acTemp);
+					
+							ac.setMode(mode);
+							ac.setFan(fan);
+							ac.setTemp(temp);
 							valueOk = true;
 						}
-						if (header.indexOf("GET /favicon.ico"))
-						{
+						if (header.indexOf("GET /favicon.ico")) {
 							//client.println("HTTP/1.1 200 OK");
 							//client.println("Content-type:image/x-icon");
 							//client.println(GetSpiffsFile("/favicon.ico"));
 							//client.println("Connection: close");
 						}
-						if(header.indexOf("&swing=") >= 0)
-						{
-							int pos = header.indexOf("&swing=");
-							int val = header.substring(pos + 7, pos + 8).toInt();
-							if (val == 1)
-							{
+						if(header.indexOf("&swing=") >= 0) {
+							int pos = header.indexOf("&swing=") + 7;
+							int val = header.substring(pos, pos + 1).toInt();
+							if (val == 1) {
 								//swing X
 								AcSwingVSwitch();
-							}
-							else if (val == 2)
-							{
+							} else if (val == 2) {
 								//swing Y same function as X right now
 								AcSwingVSwitch();
 							}
-						}
-						else if(header.indexOf("&switch=") >= 0)
-						{
-							int pos = header.indexOf("&switch=");
-							int val = header.substring(pos + 8, pos + 9).toInt();
+						} else if(header.indexOf("&switch=") >= 0) {
+							int pos = header.indexOf("&switch=") + 8;
+							int val = header.substring(pos, pos + 1).toInt();
 							//AcPowerSwitch(val != 0);
-							if (val != ac.getPower())
-							{
+							if (val != ac.getPower()) {
 								AcPowerToggle();
 							}
-						}
-						else if(valueOk)
-						{
+						} else if(valueOk) {
 							AcCmdSend();
 						}
 						Serial.println(header);
@@ -229,14 +221,10 @@ void WebHandle()
 						client.println();
 						// Break out of the while loop
 						break;
-					}
-					else
-					{ // if you got a newline, then clear currentLine
+					} else { // if you got a newline, then clear currentLine
 						currentLine = "";
 					}
-				}
-				else if (c != '\r')
-				{  // if you got anything else but a carriage return character,
+				} else if (c != '\r') {  // if you got anything else but a carriage return character,
 					currentLine += c;      // add it to the end of the currentLine
 				}
 			}
