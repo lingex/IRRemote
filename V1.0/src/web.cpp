@@ -55,6 +55,18 @@ void WebHandle()
 						uint8_t acMode = ac.getMode();
 						uint8_t acFan = ac.getFan();
 						uint8_t acTemp = ac.getTemp();
+						uint8_t acPower = ac.getPower();
+
+						if (header.indexOf("GET /status") >= 0)
+						{
+							client.println("HTTP/1.1 200 OK");
+							client.println("Content-Type: application/json");
+							client.println("Connection: close");
+							client.println();
+							client.println("{\"power\":" + String(acPower) + ",\"mode\":" + String(acMode) + ",\"fan\":" + String(acFan) + ",\"temp\":" + String(acTemp) + "}");
+							break;
+						}
+
 						// HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
 						// and a content-type so the client knows what's coming, then a blank line:
 						client.println("HTTP/1.1 200 OK");
