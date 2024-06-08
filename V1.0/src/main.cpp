@@ -47,6 +47,7 @@ const char* password = WIFI_PASSWORD;
 const char* apssid      = "esp32";
 const char* appassword = "pwd4admin";
 uint64_t chipid;
+const String dev_name = "IRRemote-V1.0";
 
 int64_t btnChkMs = 0;
 int displayCnt = 20;
@@ -395,6 +396,7 @@ bool ConnectWiFi(String ssid,String pwd)
 {
 	Serial.println("Trying WiFi: " + ssid);
 	int connectCount = 0;
+	WiFi.setHostname(dev_name.c_str());
 	WiFi.begin(ssid.c_str(), pwd.c_str());
 	while(!WiFi.isConnected() && connectCount++ < 9)
 	{
