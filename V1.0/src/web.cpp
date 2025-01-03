@@ -7,6 +7,7 @@
 #include <IRsend.h>
 #include <IRac.h>
 #include <IRtext.h>
+#include <WiFi.h>
 
 extern WiFiServer server;
 extern IRHitachiAc1 ac;
@@ -17,6 +18,7 @@ extern String acPowerState();
 extern void AcSwingVSwitch();
 extern void AcPowerToggle();
 extern void AcCmdSend();
+extern void GetSpiffsFile(String fileName, WiFiClient& client);
 
 // Current time
 unsigned long currentTime = 0;
@@ -66,6 +68,15 @@ void WebHandle()
 							client.println("{\"power\":" + String(acPower) + ",\"mode\":" + String(acMode) + ",\"fan\":" + String(acFan) + ",\"temp\":" + String(acTemp) + "}");
 							break;
 						}
+						else if (header.indexOf("GET /jquery.min.js") >= 0)
+						{
+							GetSpiffsFile("/jquery.min.js", client);
+							break;
+						}
+						else if (header.indexOf("GET /favicon.ico") >= 0) {
+							GetSpiffsFile("/favicon.ico", client);
+							break;
+						}
 
 						// HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
 						// and a content-type so the client knows what's coming, then a blank line:
@@ -77,9 +88,9 @@ void WebHandle()
 						client.println("<!DOCTYPE html><html>");
 						client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
 						//client.println("<link rel=\"icon\" href=\"data:,\">");
-						client.println("<link  rel='shortcut icon' type='image/png' href=\"data:image/x-icon;base64,");
-						client.println(favicon);
-						client.println("\">");
+//						client.println("<link  rel='shortcut icon' type='image/png' href=\"data:image/x-icon;base64,");
+//						client.println(favicon);
+//						client.println("\">");
 						client.println("<style>");
 						client.println("html {font-family: Arial; display: inline-block; text-align: center;}");
 						client.println("h2 {font-size: 2.4rem;}");
@@ -97,8 +108,9 @@ void WebHandle()
 						client.println(".button:active { background-color: #0b16b3; }");
 						client.println("</style>");
 						//client.println("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js\"></script>");
-						//client.println("<script src=\"https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js\"></script>");
-						client.println("<script src=\"https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js\"></script>");
+						// client.println("<script src=\"https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js\"></script>");	//sometimes very slow
+						//client.println("<script src=\"https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js\"></script>");	//may block by uBlock
+						client.println(String("<script src=\"/jquery.min.js\"></script>"));
 						//client.println("<script src=\"/jquery.js\"></script>");
 								
 						// Web Page
@@ -201,12 +213,6 @@ void WebHandle()
 							ac.setFan(fan);
 							ac.setTemp(temp);
 							valueOk = true;
-						}
-						if (header.indexOf("GET /favicon.ico")) {
-							//client.println("HTTP/1.1 200 OK");
-							//client.println("Content-type:image/x-icon");
-							//client.println(GetSpiffsFile("/favicon.ico"));
-							//client.println("Connection: close");
 						}
 						if(header.indexOf("&swing=") >= 0) {
 							int pos = header.indexOf("&swing=") + 7;

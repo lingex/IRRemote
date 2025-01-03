@@ -51,6 +51,7 @@ const String dev_name = "IRRemote-V1.0";
 
 int64_t btnChkMs = 0;
 int displayCnt = 20;
+int saveDelay = 0;
 
 const uint16_t lowestBatVol = 3450;	//protect battery voltage
 
@@ -151,7 +152,7 @@ uint16_t idleClock = 0;
 const uint16_t sleepClock = 25;
 
 //RTC_DATA_ATTR uint8_t acMode = 0;
-uint32_t upCount = 0;
+uint32_t actCount = 0;
 uint16_t oledColor = 0;
 
 void handleModeInt();
@@ -182,7 +183,7 @@ String GetDeviceInfoString();
 uint16_t GetOledColor()
 {
 	uint16_t color = 0;
-	if (upCount % 10 >= 5)
+	if (actCount % 10 >= 5)
 	{
 		color = 1;
 	}
@@ -206,7 +207,7 @@ void AcBackup()
 		pJson["fan"].set<int>(ac.getFan());
 		pJson["temp"].set<int>(ac.getTemp());
 
-		doc["upCount"] = ++upCount;
+		doc["actCount"] = ++actCount;
 		file.close();
 	}
 
@@ -367,12 +368,11 @@ void OnNotFound(AsyncWebServerRequest *request)
 }
 */
 
-String GetSpiffsFile(String fileName)
+void GetSpiffsFile(String fileName, WiFiClient& client)
 {
   String message = "";
   String path = fileName;
   Serial.print("request to: " + path + "\n");
-  String contentType = GetContentType(fileName);
   String pathWithGz = path + ".gz";
   if(SPIFFS.exists(pathWithGz) || SPIFFS.exists(path))
   {
@@ -380,16 +380,21 @@ String GetSpiffsFile(String fileName)
 	{
       path += ".gz";
     }
-	File file = SPIFFS.open(path, FILE_READ);
-	char *buf = new char[file.size()];
-	memset(buf, 0, file.size());
-	file.readBytes(buf, file.size());
+	String contentType = GetContentType(path);
 
-	String str = String(buf);
-	delete[] buf;
-    return str;
+	File file = SPIFFS.open(path, FILE_READ);
+	//String data = file.readString();
+	client.println("HTTP/1.1 200 OK");
+	client.println("Content-Type: " + contentType);
+	client.println("Connection: close");
+	client.println();
+	client.write(file);
+
+	file.close();
+	return;
   }
-  return "";
+  client.println("HTTP/1.1 404 NOT FOUND\r\n");
+  client.println("Connection: close");
 }
 
 bool ConnectWiFi(String ssid,String pwd)
@@ -468,8 +473,8 @@ void setup()
 		ac.setFan(pObj["fan"].as<int>());
 		ac.setTemp(pObj["temp"].as<int>());
 
-		upCount = doc.getMember("upCount").as<uint32_t>();
-		Serial.printf("device upCount: %d\n", upCount);
+		actCount = doc.getMember("actCount").as<uint32_t>();
+		Serial.printf("device actCount: %d\n", actCount);
 		file.close();
 	}
 	else
@@ -485,7 +490,7 @@ void setup()
 
 	//set color
 	u8x8_cad_StartTransfer(u8g2.getU8x8());
-	u8x8_cad_SendCmd(u8g2.getU8x8(), upCount % 10 >= 5 ? OLED_CMD_COLOR_BLACK : OLED_CMD_COLOR_WHITE);
+	u8x8_cad_SendCmd(u8g2.getU8x8(), actCount % 10 >= 5 ? OLED_CMD_COLOR_BLACK : OLED_CMD_COLOR_WHITE);
 	u8x8_cad_EndTransfer(u8g2.getU8x8());
 
 	u8g2.sendBuffer();	// transfer internal memory to the display
@@ -769,6 +774,14 @@ void loop()
 				}
 			}
 		}
+		if (saveDelay > 0)
+		{
+			saveDelay--;
+			if (saveDelay == 0)
+			{
+				AcBackup();
+			}
+		}
 		printOLED();
 	}
 	if (curMs - btnChkMs >= 10)
@@ -890,6 +903,7 @@ void AcCmdSend()
 		irrecv.enableIRIn();
 		displayCnt = 20;
 	}
+	saveDelay = 15;
 }
 
 void AcPowerToggle()
@@ -1118,7 +1132,7 @@ void LowBatteryAction()
 
 String GetDeviceInfoString()
 {
-	String result = "Device upCount: " + String(upCount);
+	String result = "ActCount: " + String(actCount);
 	result += ", Charging: " + String((USB_ACTIVE) ? "yes" : "no");
 	result += ", Battery voltage: " + String(batteryVol) + " mV";
 	// Display the settings.
@@ -1133,5 +1147,33 @@ String GetDeviceInfoString()
 		sprintf(irHex, "%02X", ir_code[i]);
 		result += String(irHex);
 	}
+
+	unsigned long seconds = millis() / 1000;
+	int days = seconds / (24 * 3600);
+	seconds = seconds % (24 * 3600);
+	int hours = seconds / 3600;
+	seconds = seconds % 3600;
+	int minutes = seconds / 60;
+	seconds = seconds % 60;
+
+	String uptime = String(days) + "d ";
+	if (hours < 10)
+	{
+		uptime += "0";
+	}
+	uptime += String(hours) + ":";
+	if (minutes < 10)
+	{
+		uptime += "0";
+	}
+	uptime += String(minutes) + ":";
+	if (seconds < 10)
+	{
+		uptime += "0";
+	}
+	uptime += String(seconds);
+
+	result += ", Uptime:" + uptime;
+	
 	return result;
 }

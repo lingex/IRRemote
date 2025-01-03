@@ -3,12 +3,12 @@
     {
       "ssid":"your ssid",
       "pwd":"your passwd"
-	}
+    }
   ],
   "ac":{
     "mode":6,
     "fan":8,
     "temp":24
   },
-  "upCount":1
+  "actCount":1
 }
