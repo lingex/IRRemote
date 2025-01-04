@@ -48,6 +48,7 @@ const char* apssid      = "esp32";
 const char* appassword = "pwd4admin";
 uint64_t chipid;
 const String dev_name = "IRRemote-V1.0";
+const String buildTime = __DATE__ ", " __TIME__;
 
 int64_t btnChkMs = 0;
 int displayCnt = 20;
@@ -1174,6 +1175,8 @@ String GetDeviceInfoString()
 	uptime += String(seconds);
 
 	result += ", Uptime:" + uptime;
+
+	result += ", Build: " + buildTime;
 	
 	return result;
 }
