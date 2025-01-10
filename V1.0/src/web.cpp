@@ -185,7 +185,7 @@ void WebHandle()
 						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', switch:' + btnVal);");
 						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&switch=\" + btnVal + \"&\"); {Connection: close};");
 						client.println("}");
-						client.println("console.log(\"" + GetDeviceInfoString() + "\")");
+						client.println("console.log(" + GetDeviceInfoString() + ")");
 						client.println("</script></body></html>");
 						
 						//GET /?value=140125&switch=1& HTTP/1.1

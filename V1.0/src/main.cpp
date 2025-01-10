@@ -203,14 +203,13 @@ void AcBackup()
 		File file = SPIFFS.open(configFile, FILE_READ);
 		String data = file.readString();
 		deserializeJson(doc, data);
-		auto pJson = doc.getOrAddMember("ac").as<JsonObject>();
-		pJson["mode"].set<int>(ac.getMode());
-		pJson["fan"].set<int>(ac.getFan());
-		pJson["temp"].set<int>(ac.getTemp());
-
-		doc["actCount"] = ++actCount;
-		file.close();
 	}
+
+	auto pJson = doc.getOrAddMember("ac").as<JsonObject>();
+	pJson["mode"].set<int>(ac.getMode());
+	pJson["fan"].set<int>(ac.getFan());
+	pJson["temp"].set<int>(ac.getTemp());
+	doc["actCount"] = ++actCount;
 
 	File fileW = SPIFFS.open(configFile, FILE_WRITE);
 	serializeJson(doc, fileW);
@@ -394,7 +393,7 @@ void GetSpiffsFile(String fileName, WiFiClient& client)
 	file.close();
 	return;
   }
-  client.println("HTTP/1.1 404 NOT FOUND\r\n");
+  client.println("HTTP/1.1 404 NOT FOUND");
   client.println("Connection: close");
 }
 
@@ -904,7 +903,7 @@ void AcCmdSend()
 		irrecv.enableIRIn();
 		displayCnt = 20;
 	}
-	saveDelay = 15;
+	saveDelay = 30;
 }
 
 void AcPowerToggle()
@@ -1133,50 +1132,37 @@ void LowBatteryAction()
 
 String GetDeviceInfoString()
 {
-	String result = "ActCount: " + String(actCount);
-	result += ", Charging: " + String((USB_ACTIVE) ? "yes" : "no");
-	result += ", Battery voltage: " + String(batteryVol) + " mV";
-	// Display the settings.
-	result += ", Remote state: ";
-	result += ac.toString().c_str();
-	// Display the encoded IR sequence.
+	DynamicJsonDocument doc(1024);
+	doc["ActCount"] = actCount;
+	doc["Dev"] = dev_name;
+	doc["Charging"] = (USB_ACTIVE) ? "yes" : "no";
+	doc["Batvoltage"] = String(batteryVol) + " mV";
+	doc["AcInfo"] = ac.toString();
+
 	unsigned char* ir_code = ac.getRaw();
-	result += ", IR Code: 0x";
 	char irHex[8] = {0};
+	String irCode = "";
 	for (uint8_t i = 0; i < kHitachiAc1StateLength; i++)
 	{
 		sprintf(irHex, "%02X", ir_code[i]);
-		result += String(irHex);
+		irCode += String(irHex);
 	}
+	doc["LatestIrCode"] = irCode;
+	doc["Build"] = buildTime;
 
-	unsigned long seconds = millis() / 1000;
-	int days = seconds / (24 * 3600);
-	seconds = seconds % (24 * 3600);
-	int hours = seconds / 3600;
-	seconds = seconds % 3600;
-	int minutes = seconds / 60;
-	seconds = seconds % 60;
+    unsigned long seconds = millis() / 1000;
+    int days = seconds / (24 * 3600);
+    seconds = seconds % (24 * 3600);
+    int hours = seconds / 3600;
+    seconds = seconds % 3600;
+    int minutes = seconds / 60;
+    seconds = seconds % 60;
 
-	String uptime = String(days) + "d ";
-	if (hours < 10)
-	{
-		uptime += "0";
-	}
-	uptime += String(hours) + ":";
-	if (minutes < 10)
-	{
-		uptime += "0";
-	}
-	uptime += String(minutes) + ":";
-	if (seconds < 10)
-	{
-		uptime += "0";
-	}
-	uptime += String(seconds);
+    char uptime[20];
+    snprintf(uptime, sizeof(uptime), "%dd %02d:%02d:%02d", days, hours, minutes, (int)seconds);
+    doc["Uptime"] = uptime;
 
-	result += ", Uptime:" + uptime;
-
-	result += ", Build: " + buildTime;
-	
-	return result;
+    String result;
+    serializeJson(doc, result);
+    return result;
 }
