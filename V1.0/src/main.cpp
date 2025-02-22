@@ -26,7 +26,8 @@
 
 #include <U8g2lib.h>
 
-#include <ir_Hitachi.h>
+//#include <ir_Hitachi.h>
+#include <ir_Goodweather.h>
 
 #include <vector>
 #include <map>
@@ -134,7 +135,8 @@ decode_results results;  // Somewhere to store the results
 // ==================== end of TUNEABLE PARAMETERS ====================
 
 // The IR transmitter.
-IRHitachiAc1 ac(kIrLedPin);
+//IRHitachiAc1 ac(kIrLedPin);
+IRGoodweatherAc ac(kIrLedPin);
 
 WiFiServer server(80);
 
@@ -221,19 +223,19 @@ String AcModeString(uint8_t mode)
 	String result = "UNKNOW";
 	switch (mode)
 	{
-	case kHitachiAc1Cool:
+	case kGoodweatherCool:
 		result = "Cool";
 		break;
-	case kHitachiAc1Heat:
+	case kGoodweatherHeat:
 		result = "Heat";
 		break;
-	case kHitachiAc1Dry:
+	case kGoodweatherDry:
 		result = "Dry";
 		break;
-	case kHitachiAc1Fan:
+	case kGoodweatherFan:
 		result = "Fan";
 		break;
-	case kHitachiAc1Auto:
+	case kGoodweatherAuto:
 		result = "Auto";
 		break;
 	default:
@@ -247,16 +249,16 @@ String AcFanString(uint8_t speed)
 	String result = "UNKNOW";
 	switch (speed)
 	{
-	case kHitachiAc1FanHigh:
+	case kGoodweatherFanHigh:
 		result = "High";
 		break;
-	case kHitachiAc1FanMed:
+	case kGoodweatherFanMed:
 		result = "Med";
 		break;
-	case kHitachiAc1FanLow:
+	case kGoodweatherFanLow:
 		result = "Low";
 		break;
-	case kHitachiAc1FanAuto:
+	case kGoodweatherFanAuto:
 		result = "Auto";
 		break;
 	default:
@@ -452,13 +454,11 @@ void setup()
 
 	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
 	ac.begin();
-	ac.setModel(R_LT0541_HTA_B);
 	ac.setSleep(0);
 	ac.setPower(false);
-	ac.setPowerToggle(false);
-	ac.setSwingToggle(false);
-	ac.setSwingH(false);
-	ac.setSwingV(false);
+	ac.setSwing(kGoodweatherSwingOff);
+	ac.setLight(false);
+	ac.setSleep(false);
 
 	SPIFFS.begin();
 	if(SPIFFS.exists(configFile))
@@ -479,9 +479,9 @@ void setup()
 	}
 	else
 	{
-		ac.setMode(kHitachiAc1Cool);
-		ac.setTemp(kHitachiAc1TempAuto);
-		ac.setFan(kHitachiAc1FanLow);
+		ac.setMode(kGoodweatherAuto);
+		ac.setTemp(23);
+		ac.setFan(kGoodweatherFanLow);
 		AcBackup();
 	}
 	u8g2.begin();
@@ -682,12 +682,8 @@ void printState()
 	Serial.println("Remote state: ");
 	Serial.printf("  %s\n", ac.toString().c_str());
 	// Display the encoded IR sequence.
-	unsigned char* ir_code = ac.getRaw();
-	Serial.print("IR Code: 0x");
-	for (uint8_t i = 0; i < kHitachiAc1StateLength; i++)
-	{
-		Serial.printf("%02X", ir_code[i]);
-	}
+	Serial.printf("IR Code: %llu", ac.getRaw());
+
 	Serial.println();
 }
 
@@ -921,7 +917,9 @@ void AcPowerSwitch(bool on)
 
 void AcSwingVSwitch()
 {
-	ac.setSwingToggle(true);
+	static bool swingV = false;
+	swingV = !swingV;
+	ac.setSwing(swingV ? kGoodweatherSwingSlow : kGoodweatherSwingOff);
 	AcCmdSend();
 }
 
@@ -930,20 +928,20 @@ void AcFanSpeed()
 	uint8_t speed = ac.getFan();
 	switch (speed)
 	{
-	case kHitachiAc1FanAuto:
-		speed = kHitachiAc1FanLow;
+	case kGoodweatherFanAuto:
+		speed = kGoodweatherFanLow;
 		break;
-	case kHitachiAc1FanHigh:
-		speed = kHitachiAc1FanAuto;
+	case kGoodweatherFanHigh:
+		speed = kGoodweatherFanAuto;
 		break;
-		case kHitachiAc1FanMed:
-		speed = kHitachiAc1FanHigh;
+		case kGoodweatherFanMed:
+		speed = kGoodweatherFanHigh;
 		break;
-		case kHitachiAc1FanLow:
-		speed = kHitachiAc1FanMed;
+		case kGoodweatherFanLow:
+		speed = kGoodweatherFanMed;
 		break;
 	default:
-		speed = kHitachiAc1FanAuto;
+		speed = kGoodweatherFanAuto;
 		break;
 	}
 	ac.setFan(speed);
@@ -955,29 +953,29 @@ void AcModeSwitch()
 	uint8_t acMode = ac.getMode();
 	switch (acMode)
 	{
-	case kHitachiAc1Dry:
-		acMode = kHitachiAc1Fan;
+	case kGoodweatherDry:
+		acMode = kGoodweatherFan;
 		break;
-	case kHitachiAc1Fan:
-		acMode = kHitachiAc1Cool;
+	case kGoodweatherFan:
+		acMode = kGoodweatherCool;
 		break;
-		case kHitachiAc1Cool:
-		acMode = kHitachiAc1Heat;
+		case kGoodweatherCool:
+		acMode = kGoodweatherHeat;
 		break;
-		case kHitachiAc1Heat:
-		acMode = kHitachiAc1Auto;
+		case kGoodweatherHeat:
+		acMode = kGoodweatherAuto;
 		break;
-		case kHitachiAc1Auto:
-		acMode = kHitachiAc1Dry;
+		case kGoodweatherAuto:
+		acMode = kGoodweatherDry;
 		break;
 	default:
-		acMode = kHitachiAc1Fan;
+		acMode = kGoodweatherFan;
 		break;
 	}
 
-	if (acMode == kHitachiAc1Fan && ac.getFan() == kHitachiAcFanAuto)//auto fan speed not allow in fan mode
+	if (acMode == kGoodweatherFan && ac.getFan() == kGoodweatherFanAuto)//auto fan speed not allow in fan mode
 	{
-		ac.setFan(kHitachiAcFanLow);
+		ac.setFan(kGoodweatherFanLow);
 	}
 	ac.setMode(acMode);
 	AcCmdSend();
@@ -1139,15 +1137,7 @@ String GetDeviceInfoString()
 	doc["Batvoltage"] = String(batteryVol) + " mV";
 	doc["AcInfo"] = ac.toString();
 
-	unsigned char* ir_code = ac.getRaw();
-	char irHex[8] = {0};
-	String irCode = "";
-	for (uint8_t i = 0; i < kHitachiAc1StateLength; i++)
-	{
-		sprintf(irHex, "%02X", ir_code[i]);
-		irCode += String(irHex);
-	}
-	doc["LatestIrCode"] = irCode;
+	doc["LatestIrCode"] = ac.getRaw();
 	doc["Build"] = buildTime;
 
     unsigned long seconds = millis() / 1000;

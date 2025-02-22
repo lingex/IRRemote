@@ -10,7 +10,8 @@
 #include <WiFi.h>
 
 extern WiFiServer server;
-extern IRHitachiAc1 ac;
+//extern IRHitachiAc1 ac;
+extern IRGoodweatherAc ac;
 extern int displayCnt;
 
 extern String GetDeviceInfoString();
@@ -115,24 +116,24 @@ void WebHandle()
 						//client.println("<script src=\"/jquery.js\"></script>");
 								
 						// Web Page
-						client.println("</head><body><h1>Hitachi AC</h1>");
+						client.println("</head><body><h1>AC Remote</h1>");
 						client.println("<p><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"powerbtn\" " + acPowerState() + "><span class=\"slider\"></span></label></p>");
 						client.println("<center>");
 						client.println("<fieldset style='width:300px; border-radius: 8px' id=\"fieldsetACMode\" onchange=\"ac()\">");
 						client.println("<legend align='center'>Mode</legend>");
-						client.println("<input type='radio' name='acMODE' value='" + String(kHitachiAc1Cool) + "' " + String(acMode == kHitachiAc1Cool ? "checked" : "") +  "/>Cool");
-						client.println("<input type='radio' name='acMODE' value='" + String(kHitachiAc1Heat) + "' " + String(acMode == kHitachiAc1Heat ? "checked" : "") +  "/>Heat");
-						client.println("<input type='radio' name='acMODE' value='" + String(kHitachiAc1Fan) + "' " + String(acMode == kHitachiAc1Fan ? "checked" : "") +  "/>Fan");
-						client.println("<input type='radio' name='acMODE' value='" + String(kHitachiAc1Dry) + "' " + String(acMode == kHitachiAc1Dry ? "checked" : "") +  "/>Dry");
-						client.println("<input type='radio' name='acMODE' value='" + String(kHitachiAc1Auto) + "' " + String(acMode == kHitachiAc1Auto ? "checked" : "") +  "/>Auto");
+						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherCool) + "' " + String(acMode == kGoodweatherCool ? "checked" : "") +  "/>Cool");
+						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherHeat) + "' " + String(acMode == kGoodweatherHeat ? "checked" : "") +  "/>Heat");
+						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherFan) + "' "  + String(acMode == kGoodweatherFan ? "checked" : "") +  "/>Fan");
+						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherDry) + "' "  + String(acMode == kGoodweatherDry ? "checked" : "") +  "/>Dry");
+						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherAuto) + "' " + String(acMode == kGoodweatherAuto ? "checked" : "") +  "/>Auto");
 						client.println("</fieldset>");
 						client.println("<br>");
 						client.println("<fieldset style='width:300px; border-radius: 8px' id=\"fieldsetACFan\" onchange=\"ac()\">");
 						client.println("<legend align='center'>Fan</legend>");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kHitachiAc1FanLow) + "' " + String(acFan == kHitachiAc1FanLow ? "checked" : "")  + "/>Low");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kHitachiAc1FanMed) + "' " + String(acFan == kHitachiAc1FanMed ? "checked" : "")  + "/>Med");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kHitachiAc1FanHigh) + "' " + String(acFan == kHitachiAc1FanHigh ? "checked" : "")  + "/>High");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kHitachiAc1FanAuto) + "' " + String(acFan == kHitachiAc1FanAuto ? "checked" : "")  + "/>Auto");
+						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanLow) + "' "  + String(acFan == kGoodweatherFanLow ? "checked" : "")  + "/>Low");
+						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanMed) + "' "  + String(acFan == kGoodweatherFanMed ? "checked" : "")  + "/>Med");
+						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanHigh) + "' " + String(acFan == kGoodweatherFanHigh ? "checked" : "")  + "/>High");
+						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanAuto) + "' " + String(acFan == kGoodweatherFanAuto ? "checked" : "")  + "/>Auto");
 						client.println("</fieldset>");
 						client.println("</center>");
 						//temp slider
