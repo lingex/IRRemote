@@ -143,6 +143,10 @@ void WebHandle()
 						client.println("<button type=\"button\" class=\"button\" onclick=\"swingAction('1')\">Swing X</button>");
 						client.println("<button type=\"button\" class=\"button\" onclick=\"swingAction('2')\">Swing Y</button>");
 						client.println("</p>");
+//						client.println("<button type=\"button\" class=\"button\" onclick=\"lightAction('1')\">Light On</button>");
+//						client.println("<button type=\"button\" class=\"button\" onclick=\"lightAction('0')\">Light Off</button>");
+						client.println("<button type=\"button\" class=\"button\" onclick=\"turboAction('1')\">Turbo On</button>");
+						client.println("<button type=\"button\" class=\"button\" onclick=\"turboAction('0')\">Turbo Off</button>");
 						client.println("<div style=\"position: relative;\">");
 						client.println("<div style=\"position: absolute; bottom: -300px; background-color: rgb(207, 237, 248)\">");
 						client.println(GetDeviceInfoString());
@@ -174,8 +178,17 @@ void WebHandle()
 						client.println("var modeVal = modeSelector ? modeSelector.value : 1;");
 						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
 						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
-						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', swing:' + btnVal);");
-						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&swing=\" + btnVal + \"&\"); {Connection: close};");
+						client.println("console.log('swing:' + btnVal);");
+						client.println("$.get(\"/?swing=\" + btnVal + \"&\"); {Connection: close};");
+						client.println("}");
+						client.println("function lightAction(btnVal) {");
+						client.println("console.log('Light action: ' + btnVal);");
+						client.println("$.get(\"/?light=\" + btnVal + \"&\"); {Connection: close};");
+						client.println("}");
+
+						client.println("function turboAction(btnVal) {");
+						client.println("console.log('Turbo action: ' + btnVal);");
+						client.println("$.get(\"/?turbo=\" + btnVal + \"&\"); {Connection: close};");
 						client.println("}");
 						//power switch action
 						client.println("function btnAction(btnVal) {");
@@ -216,24 +229,45 @@ void WebHandle()
 							ac.setTemp(temp);
 							valueOk = true;
 						}
-						if(header.indexOf("&swing=") >= 0) {
-							int pos = header.indexOf("&swing=") + 7;
+						if(header.indexOf("?light=") >= 0) {
+							int pos = header.indexOf("?light=") + 7;
 							int val = header.substring(pos, pos + 1).toInt();
+							ac.setLight(val != 0);
+							valueOk = true;
+						}
+
+						if(header.indexOf("?turbo=") >= 0) {
+							int pos = header.indexOf("?turbo=") + 7;
+							int val = header.substring(pos, pos + 1).toInt();
+							ac.setTurbo(val != 0);
+							valueOk = true;
+						}
+						if(header.indexOf("?swing=") >= 0) {
+							int pos = header.indexOf("?swing=") + 7;
+							int val = header.substring(pos, pos + 1).toInt();
+//							ac.setSwing(val != 0);
+//							valueOk = true;
+
 							if (val == 1) {
 								//swing X
 								AcSwingVSwitch();
-							} else if (val == 2) {
+							} 
+//							else if (val == 2) {
 								//swing Y same function as X right now
-								AcSwingVSwitch();
-							}
+//								AcSwingVSwitch();
+//							}
+
 						} else if(header.indexOf("&switch=") >= 0) {
 							int pos = header.indexOf("&switch=") + 8;
 							int val = header.substring(pos, pos + 1).toInt();
 							//AcPowerSwitch(val != 0);
-							if (val != ac.getPower()) {
-								AcPowerToggle();
-							}
-						} else if(valueOk) {
+//							if (val != ac.getPower()) {
+//								AcPowerToggle();
+//							}
+							ac.setPower(val != 0);
+							valueOk = true;
+						}
+						if(valueOk) {
 							AcCmdSend();
 						}
 						Serial.println(header);
