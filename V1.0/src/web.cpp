@@ -11,8 +11,11 @@
 
 extern WiFiServer server;
 //extern IRHitachiAc1 ac;
-extern IRGoodweatherAc ac;
+//extern IRGoodweatherAc ac;
+extern IRKelvinatorAC ac;
 extern int displayCnt;
+extern String lastDecodeSource;
+extern String lastDecodeAcDesc;
 
 extern String GetDeviceInfoString();
 extern String acPowerState();
@@ -70,6 +73,34 @@ void WebHandle()
 							client.println("{\"power\":" + String(acPower) + ",\"mode\":" + String(acMode) + ",\"fan\":" + String(acFan) + ",\"temp\":" + String(acTemp) + String(",\"modeStr\":\"") + AcModeString(acMode)+  "\"}");
 							break;
 						}
+						else if (header.indexOf("GET /last") >= 0)
+						{
+							client.println("HTTP/1.1 200 OK");
+							client.println("Content-Type: application/json");
+							client.println("Connection: close");
+							client.println();
+							client.println("{\"source\":\"" + lastDecodeSource + "\",\"desc\":\"" + lastDecodeAcDesc + "\"}");
+							break;
+						}
+						else if (header.indexOf("GET /testsend") >= 0)
+						{
+							// Toggle power and send current AC state to test IR TX
+							AcPowerToggle();
+							client.println("HTTP/1.1 200 OK");
+							client.println("Content-Type: application/json");
+							client.println("Connection: close");
+							client.println();
+							client.println("{\"sent\":true}");
+							break;
+						}
+						else if (header.indexOf("GET /setmodel") >= 0)
+						{
+							// /setmodel not supported for Kelvinator protocol in this build.
+							client.println("HTTP/1.1 501 Not Implemented");
+							client.println("Connection: close");
+							client.println();
+							break;
+						}
 						else if (header.indexOf("GET /jquery.min.js") >= 0)
 						{
 							GetSpiffsFile("/jquery.min.js", client);
@@ -121,19 +152,19 @@ void WebHandle()
 						client.println("<center>");
 						client.println("<fieldset style='width:300px; border-radius: 8px' id=\"fieldsetACMode\" onchange=\"ac()\">");
 						client.println("<legend align='center'>Mode</legend>");
-						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherCool) + "' " + String(acMode == kGoodweatherCool ? "checked" : "") +  "/>Cool");
-						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherHeat) + "' " + String(acMode == kGoodweatherHeat ? "checked" : "") +  "/>Heat");
-						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherFan) + "' "  + String(acMode == kGoodweatherFan ? "checked" : "") +  "/>Fan");
-						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherDry) + "' "  + String(acMode == kGoodweatherDry ? "checked" : "") +  "/>Dry");
-						client.println("<input type='radio' name='acMODE' value='" + String(kGoodweatherAuto) + "' " + String(acMode == kGoodweatherAuto ? "checked" : "") +  "/>Auto");
+						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorCool) + "' " + String(acMode == kKelvinatorCool ? "checked" : "") +  "/>Cool");
+						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorHeat) + "' " + String(acMode == kKelvinatorHeat ? "checked" : "") +  "/>Heat");
+						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorFan) + "' "  + String(acMode == kKelvinatorFan ? "checked" : "") +  "/>Fan");
+						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorDry) + "' "  + String(acMode == kKelvinatorDry ? "checked" : "") +  "/>Dry");
+						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorAuto) + "' " + String(acMode == kKelvinatorAuto ? "checked" : "") +  "/>Auto");
 						client.println("</fieldset>");
 						client.println("<br>");
 						client.println("<fieldset style='width:300px; border-radius: 8px' id=\"fieldsetACFan\" onchange=\"ac()\">");
 						client.println("<legend align='center'>Fan</legend>");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanLow) + "' "  + String(acFan == kGoodweatherFanLow ? "checked" : "")  + "/>Low");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanMed) + "' "  + String(acFan == kGoodweatherFanMed ? "checked" : "")  + "/>Med");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanHigh) + "' " + String(acFan == kGoodweatherFanHigh ? "checked" : "")  + "/>High");
-						client.println("<input type='radio' name='fanSpeed' value='" + String(kGoodweatherFanAuto) + "' " + String(acFan == kGoodweatherFanAuto ? "checked" : "")  + "/>Auto");
+						client.println("<input type='radio' name='fanSpeed' value='1' "  + String(acFan == 1 ? "checked" : "")  + "/>Low");
+						client.println("<input type='radio' name='fanSpeed' value='3' "  + String(acFan == 3 ? "checked" : "")  + "/>Med");
+						client.println("<input type='radio' name='fanSpeed' value='5' " + String(acFan == 5 ? "checked" : "")  + "/>High");
+						client.println("<input type='radio' name='fanSpeed' value='0' " + String(acFan == 0 ? "checked" : "")  + "/>Auto");
 						client.println("</fieldset>");
 						client.println("</center>");
 						//temp slider

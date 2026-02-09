@@ -27,7 +27,9 @@
 #include <U8g2lib.h>
 
 //#include <ir_Hitachi.h>
-#include <ir_Goodweather.h>
+//#include <ir_Goodweather.h>
+#include <ir_Kelvinator.h>
+
 
 #include <vector>
 #include <map>
@@ -136,7 +138,8 @@ decode_results results;  // Somewhere to store the results
 
 // The IR transmitter.
 //IRHitachiAc1 ac(kIrLedPin);
-IRGoodweatherAc ac(kIrLedPin);
+//IRGoodweatherAc ac(kIrLedPin);
+IRKelvinatorAC ac(kIrLedPin);
 
 WiFiServer server(80);
 
@@ -223,19 +226,19 @@ String AcModeString(uint8_t mode)
 	String result = "UNKNOW";
 	switch (mode)
 	{
-	case kGoodweatherCool:
+	case kKelvinatorCool:
 		result = "Cool";
 		break;
-	case kGoodweatherHeat:
+	case kKelvinatorHeat:
 		result = "Heat";
 		break;
-	case kGoodweatherDry:
+	case kKelvinatorDry:
 		result = "Dry";
 		break;
-	case kGoodweatherFan:
+	case kKelvinatorFan:
 		result = "Fan";
 		break;
-	case kGoodweatherAuto:
+	case kKelvinatorAuto:
 		result = "Auto";
 		break;
 	default:
@@ -244,25 +247,21 @@ String AcModeString(uint8_t mode)
 	return result;
 }
 
+// Last received decode info (for web UI when serial isn't available).
+String lastDecodeSource = "";
+String lastDecodeAcDesc = "";
+
 String AcFanString(uint8_t speed)
 {
 	String result = "UNKNOW";
-	switch (speed)
-	{
-	case kGoodweatherFanHigh:
-		result = "High";
-		break;
-	case kGoodweatherFanMed:
-		result = "Med";
-		break;
-	case kGoodweatherFanLow:
-		result = "Low";
-		break;
-	case kGoodweatherFanAuto:
+	if (speed == kKelvinatorFanAuto) {
 		result = "Auto";
-		break;
-	default:
-		break;
+	} else if (speed <= 1) {
+		result = "Low";
+	} else if (speed == 2 || speed == 3) {
+		result = "Med";
+	} else {
+		result = "High";
 	}
 	return result;
 }
@@ -454,11 +453,11 @@ void setup()
 
 	//Serial.printf("AC model:%s.\n", "R_LT0541_HTA_B");
 	ac.begin();
-	ac.setSleep(0);
+	//ac.setSleep(0);
 	ac.setPower(false);
-	ac.setSwing(kGoodweatherSwingOff);
-	ac.setLight(false);
-	ac.setSleep(false);
+	//ac.setSwingVertical(false, kGreeSwingHMiddle);	//TODO
+	ac.setLight(true);
+	//ac.setSleep(false);
 
 	SPIFFS.begin();
 	if(SPIFFS.exists(configFile))
@@ -567,7 +566,7 @@ void setup()
 		irrecv.setUnknownThreshold(kMinUnknownSize);
 #endif  // DECODE_HASH
 		irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
-		irrecv.enableIRIn(false);  // Start the receiver
+		irrecv.enableIRIn();  // Start the receiver
 	}
 
 	chipid=ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
@@ -806,6 +805,10 @@ void loop()
 		// Check if the IR code has been received.
 		if (irrecv.decode(&results))
 		{
+			// LED blink on decode for visual feedback
+			digitalWrite(LED, 1);
+			delay(50);
+			digitalWrite(LED, 0);
 			// Display a crude timestamp.
 			uint32_t now = millis();
 			Serial.printf(D_STR_TIMESTAMP " : %06u.%03u\n", now / 1000, now % 1000);
@@ -828,9 +831,13 @@ void loop()
 			Serial.println(resultToTimingInfo(&results));
 			yield();  // Feed the WDT (again)
 #endif  // LEGACY_TIMING_INFO
-			// Output the results as source code
-			Serial.println(resultToSourceCode(&results));
+			// Output the results as source code and save for web access.
+			String src = resultToSourceCode(&results);
+			Serial.println(src);
 			Serial.println();    // Blank line between entries
+			// Save decode info for web UI when serial isn't available.
+			lastDecodeSource = src;
+			lastDecodeAcDesc = description;
 			yield();             // Feed the WDT (again)
 		}
 	}
@@ -919,7 +926,7 @@ void AcSwingVSwitch()
 {
 	static bool swingV = false;
 	swingV = !swingV;
-	ac.setSwing(swingV ? kGoodweatherSwingSlow : kGoodweatherSwingOff);
+	//ac.setSwingVertical(swingV ? true : false, swingV ? kGreeSwingAuto : kGreeSwingLastPos);
 	AcCmdSend();
 }
 
