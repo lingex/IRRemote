@@ -121,9 +121,6 @@ void WebHandle()
 						client.println("<!DOCTYPE html><html>");
 						client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
 						//client.println("<link rel=\"icon\" href=\"data:,\">");
-//						client.println("<link  rel='shortcut icon' type='image/png' href=\"data:image/x-icon;base64,");
-//						client.println(favicon);
-//						client.println("\">");
 						client.println("<style>");
 						client.println("html {font-family: Arial; display: inline-block; text-align: center;}");
 						client.println("h2 {font-size: 2.4rem;}");
@@ -140,13 +137,7 @@ void WebHandle()
 						client.println(".button:hover { background-color: #0354ce; }");
 						client.println(".button:active { background-color: #0b16b3; }");
 						client.println("</style>");
-						//client.println("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js\"></script>");
-						// client.println("<script src=\"https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js\"></script>");	//sometimes very slow
-						//client.println("<script src=\"https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js\"></script>");	//may block by uBlock
 						client.println(String("<script src=\"/jquery.min.js\"></script>"));
-						//client.println("<script src=\"/jquery.js\"></script>");
-								
-						// Web Page
 						client.println("</head><body><h1>AC Remote</h1>");
 						client.println("<p><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"powerbtn\" " + acPowerState() + "><span class=\"slider\"></span></label></p>");
 						client.println("<center>");
@@ -158,24 +149,28 @@ void WebHandle()
 						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorDry) + "' "  + String(acMode == kKelvinatorDry ? "checked" : "") +  "/>Dry");
 						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorAuto) + "' " + String(acMode == kKelvinatorAuto ? "checked" : "") +  "/>Auto");
 						client.println("</fieldset>");
-						client.println("<br>");
-						client.println("<fieldset style='width:300px; border-radius: 8px' id=\"fieldsetACFan\" onchange=\"ac()\">");
-						client.println("<legend align='center'>Fan</legend>");
-						client.println("<input type='radio' name='fanSpeed' value='1' "  + String(acFan == 1 ? "checked" : "")  + "/>Low");
-						client.println("<input type='radio' name='fanSpeed' value='3' "  + String(acFan == 3 ? "checked" : "")  + "/>Med");
-						client.println("<input type='radio' name='fanSpeed' value='5' " + String(acFan == 5 ? "checked" : "")  + "/>High");
+						client.println("<fieldset>");
+						client.println("<legend align='center'>Fan Speed</legend>");
+						client.println("<input type='radio' name='fanSpeed' value='1' "  + String(acFan == 1 ? "checked" : "")  + "/>1");
+						client.println("<input type='radio' name='fanSpeed' value='2' "  + String(acFan == 2 ? "checked" : "")  + "/>2");
+						client.println("<input type='radio' name='fanSpeed' value='3' "  + String(acFan == 3 ? "checked" : "")  + "/>3");
+						client.println("<input type='radio' name='fanSpeed' value='4' "  + String(acFan == 4 ? "checked" : "")  + "/>4");
+						client.println("<input type='radio' name='fanSpeed' value='5' " + String(acFan == 5 ? "checked" : "")  + "/>5");
 						client.println("<input type='radio' name='fanSpeed' value='0' " + String(acFan == 0 ? "checked" : "")  + "/>Auto");
 						client.println("</fieldset>");
+						client.println("<p>");
+						client.println("<button type=\"button\" class=\"button\" onclick=\"swingAction('1')\">Swing V Toggle</button>");
+						client.println("<button type=\"button\" class=\"button\" onclick=\"swingAction('2')\">Swing H Toggle</button>");
+						client.println("</p>");
+						client.println("<p>");
+						client.println("<button type=\"button\" class=\"button\" onclick=\"lightAction('1')\">Light On</button>");
+						client.println("<button type=\"button\" class=\"button\" onclick=\"lightAction('0')\">Light Off</button>");
+						client.println("</p>");
 						client.println("</center>");
 						//temp slider
 						client.println("<p><nobr>Temp: <span id=\"acTemp\"></span>&#x2103</nobr></p>"); //&#x2103: ℃
 						client.println("<input type='range' min='16' max='32' class='sliderTemp' id='acTempSlider' onchange='ac()' value='" + String(ac.getTemp()) + "'/>");
 						client.println("<p>");
-						client.println("<button type=\"button\" class=\"button\" onclick=\"swingAction('1')\">Swing X</button>");
-						client.println("<button type=\"button\" class=\"button\" onclick=\"swingAction('2')\">Swing Y</button>");
-						client.println("</p>");
-//						client.println("<button type=\"button\" class=\"button\" onclick=\"lightAction('1')\">Light On</button>");
-//						client.println("<button type=\"button\" class=\"button\" onclick=\"lightAction('0')\">Light Off</button>");
 						client.println("<button type=\"button\" class=\"button\" onclick=\"turboAction('1')\">Turbo On</button>");
 						client.println("<button type=\"button\" class=\"button\" onclick=\"turboAction('0')\">Turbo Off</button>");
 						client.println("<div style=\"position: relative;\">");
@@ -197,18 +192,13 @@ void WebHandle()
 						client.println("var modeSelector = document.querySelector('input[name=\"acMODE\"]:checked');");
 						client.println("var fanSelector = document.querySelector('input[name=\"fanSpeed\"]:checked');");
 						client.println("var modeVal = modeSelector ? modeSelector.value : 1;");
-						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
+						client.println("var fanVal = fanSelector ? fanSelector.value : 1;");
 						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
 						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal);");
 						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&\"); {Connection: close};");
 						client.println("}");
 						//swing action
 						client.println("function swingAction(btnVal) {");
-						client.println("var modeSelector = document.querySelector('input[name=\"acMODE\"]:checked');");
-						client.println("var fanSelector = document.querySelector('input[name=\"fanSpeed\"]:checked');");
-						client.println("var modeVal = modeSelector ? modeSelector.value : 1;");
-						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
-						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
 						client.println("console.log('swing:' + btnVal);");
 						client.println("$.get(\"/?swing=\" + btnVal + \"&\"); {Connection: close};");
 						client.println("}");
@@ -246,15 +236,15 @@ void WebHandle()
 							int fan_start = header.indexOf("fan=") + 4;
 							int fan_end = header.indexOf('&', fan_start);
 							int fan = header.substring(fan_start, fan_end).toInt();
-						
+							
 							int temp_start = header.indexOf("temp=") + 5;
 							int temp_end = (header.indexOf('&', temp_start) != -1) ? header.indexOf('&', temp_start) : header.indexOf(' ', temp_start);
 							int temp = header.substring(temp_start, temp_end).toInt();
-						
+							
 							if (temp < 16 || temp > 35) {
 								temp = 25;
 							}
-					
+						
 							ac.setMode(mode);
 							ac.setFan(fan);
 							ac.setTemp(temp);
@@ -276,25 +266,19 @@ void WebHandle()
 						if(header.indexOf("?swing=") >= 0) {
 							int pos = header.indexOf("?swing=") + 7;
 							int val = header.substring(pos, pos + 1).toInt();
-//							ac.setSwing(val != 0);
-//							valueOk = true;
-
 							if (val == 1) {
-								//swing X
+								// vertical swing toggle
 								AcSwingVSwitch();
-							} 
-//							else if (val == 2) {
-								//swing Y same function as X right now
-//								AcSwingVSwitch();
-//							}
+								valueOk = true;
+							} else if (val == 2) {
+								// horizontal swing toggle
+								ac.setSwingHorizontal(!ac.getSwingHorizontal());
+								valueOk = true;
+							}
 
 						} else if(header.indexOf("&switch=") >= 0) {
 							int pos = header.indexOf("&switch=") + 8;
 							int val = header.substring(pos, pos + 1).toInt();
-							//AcPowerSwitch(val != 0);
-//							if (val != ac.getPower()) {
-//								AcPowerToggle();
-//							}
 							ac.setPower(val != 0);
 							valueOk = true;
 						}

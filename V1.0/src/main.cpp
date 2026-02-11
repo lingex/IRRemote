@@ -478,9 +478,9 @@ void setup()
 	}
 	else
 	{
-		ac.setMode(kGoodweatherAuto);
-		ac.setTemp(23);
-		ac.setFan(kGoodweatherFanLow);
+			ac.setMode(kKelvinatorAuto);
+			ac.setTemp(23);
+			ac.setFan(kKelvinatorFanMin);
 		AcBackup();
 	}
 	u8g2.begin();
@@ -926,7 +926,11 @@ void AcSwingVSwitch()
 {
 	static bool swingV = false;
 	swingV = !swingV;
-	//ac.setSwingVertical(swingV ? true : false, swingV ? kGreeSwingAuto : kGreeSwingLastPos);
+	if (swingV) {
+		ac.setSwingVertical(true, kKelvinatorSwingVAuto);
+	} else {
+		ac.setSwingVertical(false, kKelvinatorSwingVMiddle);
+	}
 	AcCmdSend();
 }
 
@@ -935,20 +939,20 @@ void AcFanSpeed()
 	uint8_t speed = ac.getFan();
 	switch (speed)
 	{
-	case kGoodweatherFanAuto:
-		speed = kGoodweatherFanLow;
+	case kKelvinatorFanAuto:
+		speed = kKelvinatorFanMin; // Auto -> Low
 		break;
-	case kGoodweatherFanHigh:
-		speed = kGoodweatherFanAuto;
+	case kKelvinatorFanMin:
+		speed = 3; // Low -> Med (Kelvinator medium mapping)
 		break;
-		case kGoodweatherFanMed:
-		speed = kGoodweatherFanHigh;
+	case 3:
+		speed = kKelvinatorFanMax; // Med -> High
 		break;
-		case kGoodweatherFanLow:
-		speed = kGoodweatherFanMed;
+	case kKelvinatorFanMax:
+		speed = kKelvinatorFanAuto; // High -> Auto
 		break;
 	default:
-		speed = kGoodweatherFanAuto;
+		speed = kKelvinatorFanAuto;
 		break;
 	}
 	ac.setFan(speed);
@@ -960,29 +964,29 @@ void AcModeSwitch()
 	uint8_t acMode = ac.getMode();
 	switch (acMode)
 	{
-	case kGoodweatherDry:
-		acMode = kGoodweatherFan;
+	case kKelvinatorDry:
+		acMode = kKelvinatorFan;
 		break;
-	case kGoodweatherFan:
-		acMode = kGoodweatherCool;
+	case kKelvinatorFan:
+		acMode = kKelvinatorCool;
 		break;
-		case kGoodweatherCool:
-		acMode = kGoodweatherHeat;
+	case kKelvinatorCool:
+		acMode = kKelvinatorHeat;
 		break;
-		case kGoodweatherHeat:
-		acMode = kGoodweatherAuto;
+	case kKelvinatorHeat:
+		acMode = kKelvinatorAuto;
 		break;
-		case kGoodweatherAuto:
-		acMode = kGoodweatherDry;
+	case kKelvinatorAuto:
+		acMode = kKelvinatorDry;
 		break;
 	default:
-		acMode = kGoodweatherFan;
+		acMode = kKelvinatorFan;
 		break;
 	}
 
-	if (acMode == kGoodweatherFan && ac.getFan() == kGoodweatherFanAuto)//auto fan speed not allow in fan mode
+	if (acMode == kKelvinatorFan && ac.getFan() == kKelvinatorFanAuto) // auto fan speed not allowed in fan mode
 	{
-		ac.setFan(kGoodweatherFanLow);
+		ac.setFan(kKelvinatorFanMin);
 	}
 	ac.setMode(acMode);
 	AcCmdSend();
