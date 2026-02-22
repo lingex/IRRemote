@@ -77,7 +77,7 @@ function ac() {
 		var modeSelector = document.querySelector('input[name="acMODE"]:checked');
 		var fanSelector = document.querySelector('input[name="fanSpeed"]:checked');
 		var modeVal = modeSelector ? modeSelector.value : 1;
-		var fanVal = modeSelector ? fanSelector.value : 1;
+		var fanVal = fanSelector ? fanSelector.value : 1;
 		var tempVal = tempSlider ? tempSlider.value : 1;
 		console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal);
 		var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;
@@ -90,7 +90,7 @@ function swingAction(btnVal) {
 	var modeSelector = document.querySelector('input[name="acMODE"]:checked');
 	var fanSelector = document.querySelector('input[name="fanSpeed"]:checked');
 	var modeVal = modeSelector ? modeSelector.value : 1;
-	var fanVal = modeSelector ? fanSelector.value : 1;
+	var fanVal = fanSelector ? fanSelector.value : 1;
 	var tempVal = tempSlider ? tempSlider.value : 1;
 	console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', swing:' + btnVal);
 	var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;
@@ -103,7 +103,7 @@ function btnAction(btnVal) {
 	var modeSelector = document.querySelector('input[name="acMODE"]:checked');
 	var fanSelector = document.querySelector('input[name="fanSpeed"]:checked');
 	var modeVal = modeSelector ? modeSelector.value : 1;
-	var fanVal = modeSelector ? fanSelector.value : 1;
+	var fanVal = fanSelector ? fanSelector.value : 1;
 	var tempVal = tempSlider ? tempSlider.value : 1;
 	console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', switch:' + btnVal);
 	var val = modeVal * 10000 + fanVal * 100 + tempVal * 1;

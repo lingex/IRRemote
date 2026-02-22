@@ -149,7 +149,7 @@ void WebHandle()
 						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorDry) + "' "  + String(acMode == kKelvinatorDry ? "checked" : "") +  "/>Dry");
 						client.println("<input type='radio' name='acMODE' value='" + String(kKelvinatorAuto) + "' " + String(acMode == kKelvinatorAuto ? "checked" : "") +  "/>Auto");
 						client.println("</fieldset>");
-						client.println("<fieldset>");
+						client.println("<fieldset onchange=\"ac()\">");
 						client.println("<legend align='center'>Fan Speed</legend>");
 						client.println("<input type='radio' name='fanSpeed' value='1' "  + String(acFan == 1 ? "checked" : "")  + "/>1");
 						client.println("<input type='radio' name='fanSpeed' value='2' "  + String(acFan == 2 ? "checked" : "")  + "/>2");
@@ -187,7 +187,7 @@ void WebHandle()
 						client.println("if(element.checked){ btnAction(1); }");
 						client.println("else { btnAction(0); }");
 						client.println("}");
-						//action
+						//mode/temp/fan action
 						client.println("function ac() { ");
 						client.println("var modeSelector = document.querySelector('input[name=\"acMODE\"]:checked');");
 						client.println("var fanSelector = document.querySelector('input[name=\"fanSpeed\"]:checked');");
@@ -216,7 +216,7 @@ void WebHandle()
 						client.println("var modeSelector = document.querySelector('input[name=\"acMODE\"]:checked');");
 						client.println("var fanSelector = document.querySelector('input[name=\"fanSpeed\"]:checked');");
 						client.println("var modeVal = modeSelector ? modeSelector.value : 1;");
-						client.println("var fanVal = modeSelector ? fanSelector.value : 1;");
+						client.println("var fanVal = fanSelector ? fanSelector.value : 1;");
 						client.println("var tempVal = tempSlider ? tempSlider.value : 1;");
 						client.println("console.log('mode:' + modeVal + ', fanSpeed:' + fanVal + ', temp:' + tempVal + ', switch:' + btnVal);");
 						client.println("$.get(\"/?mode=\" + modeVal + \"&fan=\" + fanVal + \"&temp=\" + tempVal + \"&switch=\" + btnVal + \"&\"); {Connection: close};");
